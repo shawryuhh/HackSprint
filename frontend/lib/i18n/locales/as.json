@@ -204,5 +204,7 @@
   "decision.approved": "প্ৰেৰণ অনুমোদন কৰক · পৰিৱৰ্তন সংৰক্ষিত",
   "decision.processing": "লোড হৈছে…",
   "route.disruption": "পথ অৱৰোধ",
-  "route.replanning": "পুনৰ পৰিকল্পনা"
+  "route.replanning": "পুনৰ পৰিকল্পনা",
+  "decision.replacementApproved": "বিকল্প পৰিকল্পনা অনুমোদিত",
+  "map.assignmentLines": "ডেশ ৰেখাই নিয়োগ দেখুৱায়, পথৰ দিশ নহয়"
 }

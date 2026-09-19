@@ -204,5 +204,7 @@
   "decision.approved": "روانگی منظور کریں · تبدیلیاں محفوظ",
   "decision.processing": "لوڈ ہو رہا ہے…",
   "route.disruption": "سڑک بند",
-  "route.replanning": "دوبارہ منصوبہ بندی"
+  "route.replanning": "دوبارہ منصوبہ بندی",
+  "decision.replacementApproved": "متبادل منصوبہ منظور ہو گیا",
+  "map.assignmentLines": "ٹوٹی لکیریں تعیناتی دکھاتی ہیں، سڑک کے راستے نہیں"
 }

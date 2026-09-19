@@ -204,5 +204,7 @@
   "decision.approved": "അയയ്ക്കാൻ അംഗീകരിക്കുക · മാറ്റങ്ങൾ സംരക്ഷിച്ചു",
   "decision.processing": "ലോഡ് ചെയ്യുന്നു…",
   "route.disruption": "റോഡ് തടസ്സം",
-  "route.replanning": "പുനരാസൂത്രണം"
+  "route.replanning": "പുനരാസൂത്രണം",
+  "decision.replacementApproved": "പകരം പദ്ധതി അംഗീകരിച്ചു",
+  "map.assignmentLines": "വരകൾ നിയോഗങ്ങൾ കാണിക്കുന്നു, റോഡ് വഴികളല്ല"
 }

@@ -54,7 +54,7 @@ export default function LeafletMap() {
     });
     if (showResources) data.resources.forEach(r => {
       const title = `${r.id} · ${t(`resources.${r.type}`)} · ${t(`status.${r.status}`)}`;
-      const marker = upsert(r.id,[r.latitude,r.longitude],`resource-marker resource-${r.type} ${r.status === "unavailable" ? "marker-unavailable" : ""}`,resourceSvg(r.type),[27,27],title);
+      const marker = upsert(r.id,[r.latitude,r.longitude],`resource-marker resource-${r.type} resource-state-${r.status} ${r.status === "unavailable" ? "marker-unavailable" : ""}`,resourceSvg(r.type),[27,27],title);
       const content = document.createElement("div"); content.className = "map-popup";
       const titleEl = document.createElement("strong"); titleEl.textContent = r.id; titleEl.dir = "ltr";
       const text = document.createElement("p"); text.textContent = `${t(`resources.${r.type}`)} · ${t(`status.${r.status}`)}`;
@@ -65,7 +65,7 @@ export default function LeafletMap() {
     if (incident && ["dispatched","blocked","replanning","awaiting_replacement"].includes(incident.status)) {
       data.resources.filter(r => r.assignedIncident === incident.id).forEach(r => L.polyline([[r.latitude,r.longitude],[incident.latitude,incident.longitude]], { color: r.id === "AMB-02" && r.eta === 24 ? "#cc4b26" : "#287466", weight: 2, dashArray: "6 7", opacity: .75 }).addTo(group));
     }
-    if (incident && ["blocked","replanning","awaiting_replacement"].includes(incident.status)) L.marker([12.943,77.62], { title: t("status.blocked"), icon: L.divIcon({ className: `block-marker ${previouslyBlocked.current ? "" : "block-new"}`, html: "!", iconSize: [25,25] }) }).addTo(group);
+    if (incident && ["blocked","replanning","awaiting_replacement"].includes(incident.status)) L.marker([12.943,77.62], { zIndexOffset: 1200, title: t("status.blocked"), icon: L.divIcon({ className: `block-marker ${previouslyBlocked.current ? "" : "block-new"}`, html: "!", iconSize: [25,25] }) }).addTo(group);
     previouslyBlocked.current = Boolean(incident && ["blocked","replanning","awaiting_replacement"].includes(incident.status));
     markers.current.forEach((marker,key) => { if (!live.has(key)) { marker.remove(); markers.current.delete(key); } }); lastSelected.current = selectedId;
   }, [data, selectedId, select, t, language, showResources, ready]);
@@ -77,6 +77,7 @@ export default function LeafletMap() {
     <div className="map-tools"><button onClick={recenter} title={t("map.center")} aria-label={t("map.center")}><LocateFixed size={18} /></button><button onClick={() => map.current?.zoomIn()} aria-label={t("map.zoomIn")}>+</button><button onClick={() => map.current?.zoomOut()} aria-label={t("map.zoomOut")}>−</button><button onClick={() => setShowResources(!showResources)} className={showResources ? "tool-active" : ""} aria-pressed={showResources} title={t("map.resourceLayers")} aria-label={t("map.resourceLayers")}><Layers size={17} /></button></div>
     {data?.incidents.some(i => i.id === "INC-1042" && ["blocked","replanning","awaiting_replacement"].includes(i.status)) && <div className="map-warning" role="status">{t("route.disruption")} · <b dir="ltr">AMB-02</b></div>}
     {failedTiles && <div className="tile-warning" role="status">{t("map.tiles")}</div>}
+    <div className="assignment-caption">{t("map.assignmentLines")}</div>
     <div className="map-legend" aria-label={t("map.legend")}>{["critical","high","moderate"].map(level => <span key={level}><i className={`legend-${level}`} />{t(`severity.${level}`)}</span>)}{["ambulance","rescue","hospital","shelter"].map(type => <span key={type}><i className={`legend-${type}`} />{t(`resources.${type}`)}</span>)}</div>
   </div>;
 }

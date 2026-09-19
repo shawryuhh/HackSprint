@@ -204,5 +204,7 @@
   "decision.approved": "ರವಾನೆಗೆ ಅನುಮೋದಿಸಿ · ಬದಲಾವಣೆ ಉಳಿಸಲಾಗಿದೆ",
   "decision.processing": "ಲೋಡ್ ಆಗುತ್ತಿದೆ…",
   "route.disruption": "ರಸ್ತೆ ತಡೆ",
-  "route.replanning": "ಮರುಯೋಜನೆ"
+  "route.replanning": "ಮರುಯೋಜನೆ",
+  "decision.replacementApproved": "ಬದಲಿ ಯೋಜನೆ ಅನುಮೋದಿಸಲಾಗಿದೆ",
+  "map.assignmentLines": "ತುಂಡು ರೇಖೆಗಳು ನಿಯೋಜನೆಗಳನ್ನು ತೋರಿಸುತ್ತವೆ, ರಸ್ತೆ ಮಾರ್ಗಗಳನ್ನಲ್ಲ"
 }

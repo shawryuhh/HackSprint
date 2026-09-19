@@ -204,5 +204,7 @@
   "decision.approved": "approve+saved",
   "decision.processing": "loading",
   "route.disruption": "blocked",
-  "route.replanning": "replanning"
+  "route.replanning": "replanning",
+  "decision.replacementApproved": "decision.replacementApproved",
+  "map.assignmentLines": "map.assignmentLines"
 }

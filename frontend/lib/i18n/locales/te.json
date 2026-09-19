@@ -204,5 +204,7 @@
   "decision.approved": "పంపడానికి ఆమోదించు · మార్పులు భద్రపరచబడ్డాయి",
   "decision.processing": "లోడ్ అవుతోంది…",
   "route.disruption": "రోడ్డు అడ్డంకి",
-  "route.replanning": "పునః ప్రణాళిక"
+  "route.replanning": "పునః ప్రణాళిక",
+  "decision.replacementApproved": "ప్రత్యామ్నాయ ప్రణాళిక ఆమోదించబడింది",
+  "map.assignmentLines": "గీతలు కేటాయింపులను చూపుతాయి, రహదారి మార్గాలను కాదు"
 }

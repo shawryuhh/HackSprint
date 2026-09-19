@@ -49,5 +49,7 @@ export const en = {
   "decision.processing": "Approving plan\u2026",
   "route.disruption": "Route disruption",
   "route.replanning": "Replanning response\u2026",
+  "decision.replacementApproved": "Replacement approved",
+  "map.assignmentLines": "Dashed lines show assignments, not road routes",
 } as const;
 export type TranslationKey = keyof typeof en;

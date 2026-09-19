@@ -204,5 +204,7 @@
   "decision.approved": "ਰਵਾਨਗੀ ਮਨਜ਼ੂਰ ਕਰੋ · ਤਬਦੀਲੀਆਂ ਸੁਰੱਖਿਅਤ",
   "decision.processing": "ਲੋਡ ਹੋ ਰਿਹਾ…",
   "route.disruption": "ਸੜਕ ਬੰਦ",
-  "route.replanning": "ਮੁੜ ਯੋਜਨਾ"
+  "route.replanning": "ਮੁੜ ਯੋਜਨਾ",
+  "decision.replacementApproved": "ਬਦਲਵੀਂ ਯੋਜਨਾ ਮਨਜ਼ੂਰ",
+  "map.assignmentLines": "ਟੁੱਟੀਆਂ ਲਾਈਨਾਂ ਤਾਇਨਾਤੀ ਦਿਖਾਉਂਦੀਆਂ ਹਨ, ਸੜਕ ਦੇ ਰਸਤੇ ਨਹੀਂ"
 }

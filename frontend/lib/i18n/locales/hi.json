@@ -204,5 +204,7 @@
   "decision.approved": "रवानगी स्वीकृत करें · बदलाव सहेजे गए",
   "decision.processing": "लोड हो रहा है…",
   "route.disruption": "सड़क अवरुद्ध",
-  "route.replanning": "पुनः योजना"
+  "route.replanning": "पुनः योजना",
+  "decision.replacementApproved": "प्रतिस्थापन स्वीकृत",
+  "map.assignmentLines": "टूटी रेखाएँ आवंटन दिखाती हैं, सड़क मार्ग नहीं"
 }

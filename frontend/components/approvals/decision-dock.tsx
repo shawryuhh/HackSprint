@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { Check, ShieldCheck, ArrowRight, Radio } from "lucide-react";
+import { Check, ShieldCheck, ArrowRight, Radio, LoaderCircle } from "lucide-react";
 import type { Incident, Recommendation } from "@/types";
 import { useResponse } from "@/state/response-context";
 import { useI18n } from "@/lib/i18n/provider";
@@ -27,14 +27,18 @@ export function DecisionDock({ incident, plan }: { incident: Incident; plan?: Re
   return <div className={`decision-dock dock-${state.emphasis}`} ref={dock} tabIndex={-1} role="region" aria-label={t("story.decision")}>
     {state.decision && plan ? <>
       <div className="dock-label"><ShieldCheck size={16} /><strong>{t(plan.replacementFor ? "decision.replacement" : "decision.initial")}</strong></div>
-      <div className="dock-plan" dir="ltr">{plan.replacementFor && <><s>{plan.replacementFor}</s><ArrowRight size={14} /></>}{plan.recommended_resources.join(" + ")}</div>
-      <p className="dock-facts">{t("incident.priority")} <b>{incident.priority}</b><span>·</span>{t("incident.confidence")} <b>{Math.round(plan.confidence*100)}%</b>{plan.replacementFor && ambulance && <><span>·</span>{t("resources.eta")} <b className="replacement-eta">{ambulance.eta} {t("resources.minutes")}</b></>}</p>
-      <button className="button approve-button" onClick={approve} disabled={busy || data?.health.automation === "offline" || data?.scenario === "empty_resources"} aria-busy={approving}><Check size={17} />{t(approving ? "decision.processing" : plan.replacementFor ? "demo.approveReplacement" : "actions.approve")}</button>
+      {plan.replacementFor && ambulance ? <div className="dock-replacement" dir="ltr" key={plan.version}>
+        <div className="dock-previous"><span>{t("route.previous")}</span><b>{plan.replacementFor}</b><small>{t("resources.eta")}: <s>{obstruction?.metadata?.old ?? "—"}</s> → <strong>{obstruction?.metadata?.eta ?? "—"}</strong> {t("resources.minutes")}</small></div>
+        <ArrowRight size={18} aria-hidden="true" />
+        <div className="dock-updated"><span>{t("route.updated")}</span><b>{ambulance.id}</b><small>{t("resources.eta")}: <strong>{ambulance.eta ?? "—"}</strong> {t("resources.minutes")}</small></div>
+      </div> : <div className="dock-plan" dir="ltr">{plan.recommended_resources.join(" + ")}</div>}
+      <p className="dock-facts">{t("incident.priority")} <b>{incident.priority}</b><span>·</span>{t("incident.confidence")} <b>{Math.round(plan.confidence*100)}%</b>{plan.replacementFor && <><span>·</span><b dir="ltr">{plan.recommended_resources.filter(id => id !== ambulance?.id).join(" + ")}</b></>}</p>
+      <button className="button approve-button" onClick={approve} disabled={busy || data?.health.automation === "offline" || data?.scenario === "empty_resources"} aria-busy={approving}>{approving ? <LoaderCircle size={17} className="spin" /> : <Check size={17} />}{t(approving ? "decision.processing" : plan.replacementFor ? "demo.approveReplacement" : "actions.approve")}</button>
       <div className="approval-secondary"><button className="button secondary" onClick={() => setModal("modify")} disabled={busy}>{t("actions.modify")}</button><button className="button reject-button" onClick={() => setModal("reject")} disabled={busy}>{t("actions.reject")}</button></div>
-    </> : <div className="dock-followup" key={incident.status}>
+    </> : <div className="dock-followup" key={`${incident.status}-${plan?.version}`} role="status" aria-atomic="true">
       {incident.status === "dispatched" || incident.status === "resolved" ? <Check size={20} /> : <Radio size={20} />}
-      <div><strong>{t(incident.status === "dispatched" ? "decision.approved" : state.next)}</strong>
-        {obstruction && ["blocked","replanning"].includes(incident.status) && <p className="dock-eta"><b dir="ltr">{obstruction.metadata?.resources}</b> · {t("resources.eta")}: <s>{obstruction.metadata?.old}</s> → <strong>{obstruction.metadata?.eta} {t("resources.minutes")}</strong></p>}
+      <div><strong>{t(incident.status === "dispatched" ? plan?.replacementFor ? "decision.replacementApproved" : "decision.approved" : state.next)}</strong>
+        {obstruction && ["blocked","replanning"].includes(incident.status) && <p className="dock-eta"><b dir="ltr">{obstruction.metadata?.resources}</b> · {t("resources.eta")}: <s>{obstruction.metadata?.old}</s> → <strong className="disrupted-eta">{obstruction.metadata?.eta} {t("resources.minutes")}</strong></p>}
         {responders.length > 0 && <p>{t("decision.responders")}: <b dir="ltr">{responders.map(r => r.id).join(" + ")}</b></p>}
         {released.length > 0 && <p>{t("decision.released")}: <b dir="ltr">{[...new Set(released)].join(", ")}</b></p>}
       </div>

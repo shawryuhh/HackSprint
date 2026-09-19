@@ -204,5 +204,7 @@
   "decision.approved": "રવાનગી મંજૂર કરો · ફેરફારો સાચવ્યા",
   "decision.processing": "લોડ થઈ રહ્યું છે…",
   "route.disruption": "રસ્તો અવરોધિત",
-  "route.replanning": "પુનઃ આયોજન"
+  "route.replanning": "પુનઃ આયોજન",
+  "decision.replacementApproved": "વૈકલ્પિક યોજના મંજૂર",
+  "map.assignmentLines": "તૂટક રેખાઓ ફાળવણી દર્શાવે છે, રસ્તાના માર્ગો નહીં"
 }

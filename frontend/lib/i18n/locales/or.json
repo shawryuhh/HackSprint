@@ -204,5 +204,7 @@
   "decision.approved": "ପଠାଇବା ଅନୁମୋଦନ · ପରିବର୍ତ୍ତନ ସଞ୍ଚିତ",
   "decision.processing": "ଲୋଡ୍ ହେଉଛି…",
   "route.disruption": "ରାସ୍ତା ଅବରୋଧ",
-  "route.replanning": "ପୁନଃ ଯୋଜନା"
+  "route.replanning": "ପୁନଃ ଯୋଜନା",
+  "decision.replacementApproved": "ବିକଳ୍ପ ଯୋଜନା ଅନୁମୋଦିତ",
+  "map.assignmentLines": "ଡ୍ୟାସ୍ ରେଖା ନିୟୋଜନ ଦେଖାଏ, ସଡ଼କ ପଥ ନୁହେଁ"
 }

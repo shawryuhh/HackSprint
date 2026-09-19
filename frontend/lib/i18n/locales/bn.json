@@ -204,5 +204,7 @@
   "decision.approved": "পাঠানোর অনুমোদন · পরিবর্তন সংরক্ষিত",
   "decision.processing": "লোড হচ্ছে…",
   "route.disruption": "রাস্তা অবরুদ্ধ",
-  "route.replanning": "পুনঃপরিকল্পনা"
+  "route.replanning": "পুনঃপরিকল্পনা",
+  "decision.replacementApproved": "বিকল্প পরিকল্পনা অনুমোদিত",
+  "map.assignmentLines": "ড্যাশ রেখা বরাদ্দ দেখায়, সড়কপথ নয়"
 }
