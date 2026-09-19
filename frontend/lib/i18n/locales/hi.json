@@ -171,5 +171,8 @@
   "notice.offline": "स्वचालन · ऑफ़लाइन",
   "common.none": "कोई नहीं",
   "common.loading": "लोड हो रहा है…",
-  "common.skip": "कमांड केंद्र"
+  "common.skip": "कमांड केंद्र",
+  "onboarding.title": "अपनी पसंदीदा भाषा चुनें",
+  "onboarding.hint": "आप इसे ऊपर से कभी भी बदल सकते हैं।",
+  "actions.continue": "जारी रखें"
 }

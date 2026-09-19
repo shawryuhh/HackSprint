@@ -171,5 +171,8 @@
   "notice.offline": "خودکاری · آف لائن",
   "common.none": "کوئی نہیں",
   "common.loading": "لوڈ ہو رہا ہے…",
-  "common.skip": "کنٹرول مرکز"
+  "common.skip": "کنٹرول مرکز",
+  "onboarding.title": "اپنی پسندیدہ زبان منتخب کریں",
+  "onboarding.hint": "آپ اوپر موجود اختیار سے کسی بھی وقت اسے بدل سکتے ہیں۔",
+  "actions.continue": "جاری رکھیں"
 }

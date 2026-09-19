@@ -171,5 +171,8 @@
   "notice.offline": "સ્વચાલન · ઑફલાઇન",
   "common.none": "કંઈ નથી",
   "common.loading": "લોડ થઈ રહ્યું છે…",
-  "common.skip": "નિયંત્રણ કેન્દ્ર"
+  "common.skip": "નિયંત્રણ કેન્દ્ર",
+  "onboarding.title": "તમારી પસંદગીની ભાષા પસંદ કરો",
+  "onboarding.hint": "ઉપરના વિકલ્પથી ગમે ત્યારે બદલી શકો છો.",
+  "actions.continue": "આગળ વધો"
 }

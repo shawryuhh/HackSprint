@@ -171,5 +171,8 @@
   "notice.offline": "ସ୍ୱୟଂଚାଳନ · ଅଫ୍‌ଲାଇନ୍",
   "common.none": "କିଛି ନାହିଁ",
   "common.loading": "ଲୋଡ୍ ହେଉଛି…",
-  "common.skip": "ନିୟନ୍ତ୍ରଣ କେନ୍ଦ୍ର"
+  "common.skip": "ନିୟନ୍ତ୍ରଣ କେନ୍ଦ୍ର",
+  "onboarding.title": "ଆପଣଙ୍କ ପସନ୍ଦର ଭାଷା ବାଛନ୍ତୁ",
+  "onboarding.hint": "ଉପର ବିକଳ୍ପରୁ ଯେକୌଣସି ସମୟରେ ବଦଳାଇ ପାରିବେ।",
+  "actions.continue": "ଆଗକୁ ବଢ଼ନ୍ତୁ"
 }

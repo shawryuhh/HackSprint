@@ -171,5 +171,8 @@
   "notice.offline": "स्वयंचलन · ऑफलाइन",
   "common.none": "काही नाही",
   "common.loading": "लोड होत आहे…",
-  "common.skip": "नियंत्रण केंद्र"
+  "common.skip": "नियंत्रण केंद्र",
+  "onboarding.title": "तुमची पसंतीची भाषा निवडा",
+  "onboarding.hint": "वरच्या पर्यायातून कधीही बदलू शकता.",
+  "actions.continue": "पुढे जा"
 }

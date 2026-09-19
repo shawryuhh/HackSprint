@@ -171,5 +171,8 @@
   "notice.offline": "স্বয়ংক্ৰিয়তা · অফলাইন",
   "common.none": "একো নাই",
   "common.loading": "লোড হৈছে…",
-  "common.skip": "নিয়ন্ত্ৰণ কেন্দ্ৰ"
+  "common.skip": "নিয়ন্ত্ৰণ কেন্দ্ৰ",
+  "onboarding.title": "আপোনাৰ পছন্দৰ ভাষা বাছনি কৰক",
+  "onboarding.hint": "ওপৰৰ বিকল্পৰ পৰা যিকোনো সময়তে সলনি কৰিব পাৰে।",
+  "actions.continue": "আগবাঢ়ক"
 }

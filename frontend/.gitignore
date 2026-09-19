@@ -5,3 +5,5 @@ out/
 .env*
 !.env.example
 test-results/
+
+.qa/

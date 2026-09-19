@@ -171,5 +171,8 @@
   "notice.offline": "স্বয়ংক্রিয়তা · অফলাইন",
   "common.none": "কিছু নেই",
   "common.loading": "লোড হচ্ছে…",
-  "common.skip": "নিয়ন্ত্রণ কেন্দ্র"
+  "common.skip": "নিয়ন্ত্রণ কেন্দ্র",
+  "onboarding.title": "আপনার পছন্দের ভাষা বেছে নিন",
+  "onboarding.hint": "উপরের বিকল্প থেকে যেকোনো সময় বদলাতে পারেন।",
+  "actions.continue": "এগিয়ে যান"
 }

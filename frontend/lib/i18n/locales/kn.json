@@ -171,5 +171,8 @@
   "notice.offline": "ಸ್ವಯಂಚಾಲನೆ · ಆಫ್‌ಲೈನ್",
   "common.none": "ಯಾವುದೂ ಇಲ್ಲ",
   "common.loading": "ಲೋಡ್ ಆಗುತ್ತಿದೆ…",
-  "common.skip": "ನಿಯಂತ್ರಣ ಕೇಂದ್ರ"
+  "common.skip": "ನಿಯಂತ್ರಣ ಕೇಂದ್ರ",
+  "onboarding.title": "ನಿಮ್ಮ ಆದ್ಯತೆಯ ಭಾಷೆಯನ್ನು ಆಯ್ಕೆಮಾಡಿ",
+  "onboarding.hint": "ಮೇಲಿನ ಆಯ್ಕೆಯಿಂದ ಯಾವಾಗ ಬೇಕಾದರೂ ಬದಲಿಸಬಹುದು.",
+  "actions.continue": "ಮುಂದುವರಿಸಿ"
 }

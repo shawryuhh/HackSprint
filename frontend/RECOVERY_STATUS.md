@@ -11,3 +11,5 @@ Checkpoint plan:
 4. Run production build, TypeScript, automated tests and browser checks; document results.
 
 The user has authorized incremental commits and pushes to `frontend`. Changes stay inside `frontend/`; `main` is not a publishing target.
+
+Checkpoint 1 complete: first-run language onboarding, browser preselection, explicit confirmation, persistence, Urdu direction and three new strings across all 13 catalogs. TypeScript and all eight automated tests pass.

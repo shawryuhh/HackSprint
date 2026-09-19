@@ -171,5 +171,8 @@
   "notice.offline": "స్వయంచాలక వ్యవస్థ · ఆఫ్‌లైన్",
   "common.none": "ఏదీ లేదు",
   "common.loading": "లోడ్ అవుతోంది…",
-  "common.skip": "నియంత్రణ కేంద్రం"
+  "common.skip": "నియంత్రణ కేంద్రం",
+  "onboarding.title": "మీకు ఇష్టమైన భాషను ఎంచుకోండి",
+  "onboarding.hint": "పైన ఉన్న ఎంపికతో ఎప్పుడైనా మార్చవచ్చు.",
+  "actions.continue": "కొనసాగించండి"
 }

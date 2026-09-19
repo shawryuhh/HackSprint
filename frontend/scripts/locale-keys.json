@@ -171,5 +171,8 @@
   "notice.offline": "automation+offline",
   "common.none": "none",
   "common.loading": "loading",
-  "common.skip": "command"
+  "common.skip": "command",
+  "onboarding.title": "ux_onboarding_title",
+  "onboarding.hint": "ux_onboarding_hint",
+  "actions.continue": "ux_actions_continue"
 }
