@@ -3,10 +3,11 @@ import { AlertCircle, CheckCircle2, LoaderCircle, Inbox, X, Ambulance, LifeBuoy,
 import { useI18n } from "@/lib/i18n/provider";
 import type { ResourceType } from "@/types";
 import { useResponse } from "@/state/response-context";
+import { useChangeFeedback } from "@/hooks/use-change-feedback";
 export const resourceIcons: Record<ResourceType, LucideIcon> = { ambulance: Ambulance, rescue: LifeBuoy, hospital: Hospital, shelter: House };
 export function StatusBadge({ status }: { status: string }) {
-  const { t } = useI18n();
-  return <span className={`badge status-${status}`}><span className="status-dot" />{t(`status.${status}`)}</span>;
+  const { t } = useI18n(); const changed = useChangeFeedback(status);
+  return <span className={`badge status-${status} ${changed ? "status-changed" : ""}`}><span className="status-dot" />{t(`status.${status}`)}</span>;
 }
 export function SeverityBadge({ severity }: { severity: number }) {
   const { t } = useI18n(); const level = severity >= 5 ? "critical" : severity >= 4 ? "high" : "moderate";

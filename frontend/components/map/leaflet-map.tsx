@@ -13,7 +13,7 @@ const resourcePaths = {
 function resourceSvg(type: keyof typeof resourcePaths) { return `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${resourcePaths[type]}</svg>`; }
 export default function LeafletMap() {
   const ref = useRef<HTMLDivElement>(null); const map = useRef<L.Map | null>(null); const layer = useRef<L.LayerGroup | null>(null);
-  const markers = useRef(new Map<string,L.Marker>()); const lastSelected = useRef<string | null>(null);
+  const markers = useRef(new Map<string,L.Marker>()); const lastSelected = useRef<string | null>(null); const previouslyBlocked = useRef(false);
   const { data, selectedId, select } = useResponse(); const { t, language } = useI18n();
   const [ready, setReady] = useState(false); const [failedTiles, setFailedTiles] = useState(false); const [showResources, setShowResources] = useState(true);
   useEffect(() => {
@@ -25,7 +25,7 @@ export default function LeafletMap() {
     L.control.scale({ imperial: false, position: "bottomleft" }).addTo(instance);
     const observer = new ResizeObserver(() => instance.invalidateSize()); observer.observe(ref.current);
     setReady(true);
-    return () => { observer.disconnect(); tiles.off(); instance.remove(); map.current = null; layer.current = null; };
+    return () => { observer.disconnect(); tiles.off(); instance.remove(); map.current = null; layer.current = null; markers.current.clear(); lastSelected.current = null; previouslyBlocked.current = false; };
   }, []);
   useEffect(() => {
     if (!ready || !map.current) return;
@@ -65,7 +65,8 @@ export default function LeafletMap() {
     if (incident && ["dispatched","blocked","replanning","awaiting_replacement"].includes(incident.status)) {
       data.resources.filter(r => r.assignedIncident === incident.id).forEach(r => L.polyline([[r.latitude,r.longitude],[incident.latitude,incident.longitude]], { color: r.id === "AMB-02" && r.eta === 24 ? "#cc4b26" : "#287466", weight: 2, dashArray: "6 7", opacity: .75 }).addTo(group));
     }
-    if (incident && ["blocked","replanning","awaiting_replacement"].includes(incident.status)) L.marker([12.943,77.62], { title: t("status.blocked"), icon: L.divIcon({ className: "block-marker", html: "!", iconSize: [25,25] }) }).addTo(group);
+    if (incident && ["blocked","replanning","awaiting_replacement"].includes(incident.status)) L.marker([12.943,77.62], { title: t("status.blocked"), icon: L.divIcon({ className: `block-marker ${previouslyBlocked.current ? "" : "block-new"}`, html: "!", iconSize: [25,25] }) }).addTo(group);
+    previouslyBlocked.current = Boolean(incident && ["blocked","replanning","awaiting_replacement"].includes(incident.status));
     markers.current.forEach((marker,key) => { if (!live.has(key)) { marker.remove(); markers.current.delete(key); } }); lastSelected.current = selectedId;
   }, [data, selectedId, select, t, language, showResources, ready]);
   const selected = data?.incidents.find(i => i.id === selectedId);

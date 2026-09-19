@@ -7,9 +7,12 @@ A standalone crisis-coordination command center. Every emergency, AI recommendat
 Requires **Node.js 22.18 or later** and npm. From the **HackSprint repository root**:
 
 ```powershell
-cd frontend
-npm ci
-npm run dev
+git fetch origin
+git switch frontend
+git pull --ff-only origin frontend
+cd .\frontend
+npm.cmd ci
+npm.cmd run dev
 ```
 
 Open **http://localhost:3000**. Keep the terminal open while demonstrating. If PowerShell blocks `npm.ps1`, use `npm.cmd ci` and `npm.cmd run dev` instead.
@@ -25,14 +28,14 @@ npm start
 
 `npm start` needs the completed production build. The test runner uses Node's built-in TypeScript stripping; no test framework is installed.
 
-If you downloaded the frontend ZIP, extract its `frontend` folder into your existing `HackSprint` folder. Do not create a nested `frontend/frontend` folder. No Git operation is needed to run it. The source lives entirely in `frontend/`; installing and running it does not require making a new commit.
+Use the GitHub `frontend` branch as the source of truth; no downloadable ZIP is required.
 
 ## Demonstration
 
 The initial dashboard contains ten fictional Bengaluru-area incidents and 19 operational resources (seven ambulances, five rescue teams, three hospitals, four shelters). `INC-1042` opens with its initial plan ready for approval.
 
 1. Click **Run demo**. The simulator resets and introduces the canonical emergency, merges two duplicate reports, sets priority 94, generates the fixed mock recommendation and requests approval.
-2. The sequence **pauses for a real click on Approve dispatch** in the incident panel. Scroll within that panel if necessary. It never approves itself.
+2. The sequence **pauses for a real click on Approve dispatch** in the incident panel. The decision dock remains visible while the report and recommendation scroll. It never approves itself.
 3. `AMB-02` and `RESCUE-01` become dispatched. Available-resource metrics and audit records update.
 4. The next timed stages show the road obstruction, AMB-02's ETA changing from 6 to 24 minutes, replanning and the proposed `AMB-05` replacement (ETA 9 minutes).
 5. The sequence **pauses again**. Click **Approve replacement**. AMB-05 dispatches, AMB-02 is released, and RESCUE-01 stays assigned.
@@ -58,9 +61,9 @@ The map is loaded only on the client (`next/dynamic`, `ssr: false`). It uses nor
 
 ## Language system
 
-English, Hindi, Kannada, Tamil, Telugu, Malayalam, Marathi, Bengali, Gujarati, Punjabi, Urdu, Assamese and Odia are available immediately. The choice persists in localStorage. Urdu changes the document to right-to-left; operational identifiers remain unchanged. LocalStorage failure is handled without preventing language selection.
+First launch shows 13 native-script language cards: English, Hindi, Kannada, Tamil, Telugu, Malayalam, Marathi, Bengali, Gujarati, Punjabi, Urdu, Assamese and Odia. A supported browser locale is preselected, but Continue is always required before entering. A saved choice skips onboarding on later visits. The header selector changes language immediately. Urdu changes document direction; operational identifiers remain unchanged. Storage failures do not prevent selection. Bundled Noto fonts support every script without external font requests.
 
-`lib/i18n/en.ts` defines 173 interface keys. The 12 JSON catalogs contain every key; missing-key coverage is verified by `tests/locales.test.ts`. Catalog wording is intentionally compact, and should receive native-speaker review before any real deployment. Place names and original user reports remain as data, not interface translations.
+`lib/i18n/en.ts` defines 206 interface keys. The 12 JSON catalogs contain every key; missing-key coverage is verified by `tests/locales.test.ts`. Catalog wording is intentionally compact, and should receive native-speaker review before any real deployment. Place names and original user reports remain as data, not interface translations.
 
 Report translation is a separate `translateReport()` service. The canonical English report has fixed translations for all 13 languages. INC-1040 also demonstrates a Hindi original with a stored English translation. Other report/language pairs explicitly report unavailable mock translation; the frontend does not invent translations. Originals are never overwritten.
 
@@ -89,7 +92,7 @@ The client-side checks are **demo behavior**, not a substitute for backend enfor
 
 ## Files and packages
 
-All files are new and confined to `frontend/`; the GitHub repository was empty. No pre-existing source files were modified.
+This recovery extends the existing application. All changes stay inside `frontend/` on the `frontend` branch. See [UX_HANDOFF.md](UX_HANDOFF.md) for the exact recovery scope and file list.
 
 | Path | Purpose |
 | --- | --- |
@@ -113,8 +116,8 @@ Next.js may generate `AGENTS.md` and `CLAUDE.md` development guidance automatica
 ## Verification and remaining limits
 
 - Production build and TypeScript checks passed.
-- Seven automated tests passed: canonical lifecycle, modification/rejection, rejection during replacement, fault states and snapshot isolation, report translation preservation, monotonic recommendation versions, and all-language key coverage.
-- The production server returned HTTP 200, rendered the command-center shell, and served all nine referenced JavaScript assets successfully.
-- Browser visual/interaction testing could not be completed in this environment: Chromium was unavailable and its download timed out. Responsive layout, keyboard behavior, Urdu rendering, Leaflet tile rendering and the timed React UI still need a real-browser check. The service transitions themselves were tested.
+- Nine automated tests passed, including all original domain and locale tests plus startup-language and state-derived next-action coverage.
+- Chromium browser checks passed for both approval gates and the full canonical demo; language onboarding/persistence in English, Hindi, Kannada, Tamil and Urdu; map selection, section navigation, Modify/Reject, dialog Tab wrapping, resources/audit views, reduced motion, desktop sizes and a 390px mobile viewport.
+- No application JavaScript errors were observed. External map tiles were unavailable in the test environment; the fallback message and local markers worked. Basemap rendering with successful tile downloads remains unverified.
 - Basemap tiles require internet; no real routing, translations, AI decisions, dispatch, persistent storage or external automation is implemented.
 - UI translations are initial implementation copy, not certified emergency-response translations. Native-speaker review remains necessary.
