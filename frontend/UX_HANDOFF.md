@@ -1,5 +1,7 @@
 # ReliefMesh UX recovery handoff
 
+This records the recovery at `b8714c7`. For the subsequent presentation pass, see [PRESENTATION_QA.md](PRESENTATION_QA.md) and [INTEGRATION_CONTRACT.md](INTEGRATION_CONTRACT.md).
+
 This pass extends the existing frontend. The mock service, domain contracts, response state and demo engine retain their original business behavior. Only `frontend/` changed; work is published on the `frontend` branch.
 
 ## What was created or changed

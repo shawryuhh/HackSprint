@@ -63,11 +63,15 @@ The map is loaded only on the client (`next/dynamic`, `ssr: false`). It uses nor
 
 First launch shows 13 native-script language cards: English, Hindi, Kannada, Tamil, Telugu, Malayalam, Marathi, Bengali, Gujarati, Punjabi, Urdu, Assamese and Odia. A supported browser locale is preselected, but Continue is always required before entering. A saved choice skips onboarding on later visits. The header selector changes language immediately. Urdu changes document direction; operational identifiers remain unchanged. Storage failures do not prevent selection. Bundled Noto fonts support every script without external font requests.
 
-`lib/i18n/en.ts` defines 206 interface keys. The 12 JSON catalogs contain every key; missing-key coverage is verified by `tests/locales.test.ts`. Catalog wording is intentionally compact, and should receive native-speaker review before any real deployment. Place names and original user reports remain as data, not interface translations.
+`lib/i18n/en.ts` defines 208 interface keys. The 12 JSON catalogs contain every key; missing-key coverage is verified by `tests/locales.test.ts`. Catalog wording is intentionally compact, and should receive native-speaker review before any real deployment. Place names and original user reports remain as data, not interface translations.
 
 Report translation is a separate `translateReport()` service. The canonical English report has fixed translations for all 13 languages. INC-1040 also demonstrates a Hindi original with a stored English translation. Other report/language pairs explicitly report unavailable mock translation; the frontend does not invent translations. Originals are never overwritten.
 
+The latest presentation polish makes the replacement ETA comparison visible directly in the decision dock, distinguishes dispatched map markers, and labels assignment lines. See [PRESENTATION_QA.md](PRESENTATION_QA.md) for this pass’s findings and verification.
+
 ## Architecture and integration
+
+See [INTEGRATION_CONTRACT.md](INTEGRATION_CONTRACT.md) for every service method, response type, failure case and teammate integration requirement. No teammate backend/AI/automation branch was published at inspection.
 
 ```text
 Components → Response context/hooks → ReliefService interface → local mock adapter
