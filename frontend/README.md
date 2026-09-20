@@ -71,6 +71,8 @@ The latest presentation polish makes the replacement ETA comparison visible dire
 
 ## Architecture and integration
 
+Start with [TEAM_INTEGRATION_PLAN.md](TEAM_INTEGRATION_PLAN.md) for each person’s next tasks, P0 blockers, proposed wire contracts and acceptance tests. [TEAM_CONTRACT_INVENTORY.md](TEAM_CONTRACT_INVENTORY.md) records what the current backend and AI code actually implement. These are planning documents; the frontend still uses its existing mock service.
+
 See [INTEGRATION_CONTRACT.md](INTEGRATION_CONTRACT.md) for every service method, response type, failure case and teammate integration requirement. The later completion-fix inspection found new `backend` and `ai/ml` branches; see [RESOLUTION_FIX.md](RESOLUTION_FIX.md) for the read-only findings and contract mismatches. Neither branch is merged or connected.
 
 ```text
