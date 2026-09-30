@@ -1,67 +1,58 @@
-# ReliefMesh AI Engine 🧠
-**Lead AI/ML Engineer & Maintainer:** Arkin Sharma
+# ReliefMesh AI/ML Engine 🧠
+Lead AI/ML Engineer & Maintainer: Arkin Sharma
+Service Port: 8001
+Microservice Architecture: Independent stateless intelligence layer (FastAPI, Pydantic, Gemini).
 
-## 🎯 Overview & My Role
-The ReliefMesh AI Engine is a standalone intelligence microservice built to process, score, and route emergency crisis reports. 
+---
 
-My primary task in this project was to solve a critical bottleneck in disaster response: making sense of chaotic, unstructured data. During a crisis, reports come in across multiple regional languages, often containing slang or incomplete sentences. **I architected and developed this AI backend from the ground up** to ingest that raw text, extract structured operational data, calculate mathematical priority scores, and prevent duplicate dispatches.
+## 🎯 Architectural Mission & Boundaries
+The ReliefMesh AI Engine is an emergency response intelligence microservice operating on port 8001. It solves the core bottlenecks in disaster dispatch:
+1. Unstructured Data Ingestion: Multilingual emergency report extraction into structured operational data schemas.
+2. Deterministic Priority Scoring: Pure-math reproducible scoring (0–100) guaranteeing safety, predictability, and verifiable triage.
+3. Candidate-Aware Resource Recommendation: Intelligent matching of incident needs to available resources, supporting initial dispatch and real-time obstacle replacement plans.
+4. Semantic Deduplication: Cross-lingual event deduplication preventing redundant dispatches.
+5. Multilingual Translation: High-fidelity crisis translation across 13 major Indian and global languages.
 
-## 🏗️ What I Built & How It Works
+### 🛡️ System Boundaries
+- AI Thinks, Backend Decides: The AI service does NOT own operational state, does NOT assign recommendation version numbers, and does NOT perform dispatches or mutate database models.
+- Human-in-the-loop Dispatch Safety: All recommendation outputs flag approval_required: true.
+- Credential Hygiene: API keys (GOOGLE_API_KEY, GEMINI_API_KEY) are loaded intentionally from .env and are strictly excluded from logs and external responses.
 
-To achieve this, I engineered three core backend pipelines using FastAPI, Pydantic, and LangChain:
+---
 
-### 1. Multilingual LLM Extraction Pipeline
-**The Problem:** Emergency reports are unstructured and multilingual, making them impossible for standard databases to parse.
-**The Solution:** I integrated Google's `gemini-3.6-flash` model via LangChain. I engineered a highly specific system prompt that forces the LLM to act as a crisis dispatcher. It dynamically translates and normalizes inputs from any language (including regional Indian dialects and Hinglish) into a strictly typed Pydantic schema (`ExtractedIncident`). It accurately pulls the location, incident type, affected count, and environmental threats.
+## 📡 API Contract Specification
 
-### 2. Advanced Priority Scoring Engine
-**The Problem:** Dispatchers need to know *who* to help first when hundreds of reports flood in.
-**The Solution:** Instead of relying on the LLM to guess a priority, I wrote a deterministic, pure-math scoring engine in Python. It calculates a priority score (0-100) based on weighted factors:
-* **Severity & Vulnerability:** Scales linearly based on the presence of vulnerable groups (elderly, children).
-* **Time Decay:** Uses an exponential decay function (`math.exp`) to aggressively prioritize highly time-sensitive reports.
-* **Algorithmic Penalties:** Automatically applies an 85% penalty modifier if the LLM's extraction confidence score drops below 0.6, flagging it for human review.
+### 1. Hardened Health Check
+GET /ai/health
+Distinguishes between service execution, key presence, and actual provider reachability.
 
-### 3. Semantic Deduplication Engine
-**The Problem:** Multiple people often report the exact same fire or flood, which wastes rescue resources.
-**The Solution:** I built an endpoint that compares new incoming unstructured text against a live array of active incidents. By leveraging the LLM's semantic reasoning, it can identify if a new report in *Gujarati* describes the exact same physical event as an active report written in *English*, returning the matched ID and halting duplicate dispatch.
+### 2. Structured Incident Extraction
+POST /ai/extract-incident
+Extracts structured crisis entities from raw multilingual text with vocabulary normalization and evidence preservation.
 
-## 🚀 Tech Stack
-* **Web Framework:** FastAPI, Uvicorn (Asynchronous API serving)
-* **Data Validation:** Pydantic (Strict JSON contract enforcement)
-* **AI/ML:** LangChain, Google Generative AI (Gemini 3.6 Flash)
-* **Testing:** Pytest, HTTPX (Mocked contract testing)
+### 3. Deterministic Priority Scoring
+POST /ai/score-incident
+Computes an objective, reproducible triage score between 0 and 100. Canonical scenario yields priority = 94.
 
-## 🛠️ Setup & Installation
+### 4. Candidate-Aware Resource Recommendation
+POST /ai/recommendation
+Produces a full desired plan using only supplied candidates and continuing responders.
+Initial: AMB-02 + RESCUE-01
+Replacement: AMB-05 + RESCUE-01 (when AMB-02 is blocked).
 
-**1. Navigate to the AI service directory:**
-`cd ai`
+### 5. Semantic Deduplication
+POST /ai/deduplicate-incident
+Compares new unstructured reports against active incidents across languages. Validates matched IDs.
 
-**2. Create and activate a virtual environment:**
-`python -m venv venv`
-`source venv/bin/activate` *(On Windows use `venv\Scripts\activate`)*
+### 6. Multilingual Translation
+POST /ai/translate-report
+Translates emergency reports across 13 ReliefMesh languages without altering original source text.
 
-**3. Install dependencies:**
-`pip install -r requirements.txt`
+---
 
-**4. Environment Variables:**
-Create a `.env` file in the root of the `ai` directory and add your Google API key:
-`GOOGLE_API_KEY=your_gemini_api_key_here`
-
-## ⚡ Running the Server
-
-Start the FastAPI development server:
-`uvicorn main:app --reload`
-
-The API will be available at `http://localhost:8000`. You can view the interactive Swagger UI and test the endpoints directly at `http://localhost:8000/docs`.
-
-## 📡 API Reference
-
-* `GET /ai/health` - Diagnostic endpoint to verify service uptime and API key configuration.
-* `POST /ai/extract-incident` - Ingests raw text and returns a strictly typed JSON schema of the emergency.
-* `POST /ai/score-incident` - Mathematical engine that calculates dispatch priority and risk levels.
-* `POST /ai/deduplicate-incident` - Semantic matching engine to prevent duplicate resource allocation.
-
-## 🧪 Testing
-
-I implemented a comprehensive test suite to ensure mathematical boundaries and API contracts remain perfectly stable. Run the tests via:
-`python -m pytest`
+## 🧪 Testing & Verification
+Comprehensive 23-test suite covering health, extraction, scoring (94), candidate recommendations, replacements, deduplication, translation, and error sanitization.
+Run tests:
+python3 run_tests.py
+# or
+python3 -m unittest test_main.py
