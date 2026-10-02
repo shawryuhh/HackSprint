@@ -65,7 +65,7 @@ def get_assignment(assignment_id: str, db: Session = Depends(get_db)) -> Assignm
     summary="Transition an assignment's status",
     description="Valid targets: ACTIVE (resource arrived on scene), COMPLETED, CANCELLED. "
     "Frees or re-parks the resource as part of the same transaction. SUPERSEDED is only "
-    "ever set by the replanning flow, never directly through this endpoint.",
+    "ever set by approving a replacement plan, never directly through this endpoint.",
     responses=responses(NOT_FOUND, CONFLICT, VALIDATION_FAILED),
 )
 def update_assignment_status(

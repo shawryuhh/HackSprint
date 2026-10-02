@@ -7,14 +7,16 @@ in the ReliefMesh crisis-coordination platform.
 
 During a disaster, reports come in from ingestion (WhatsApp/SMS via n8n) and
 get triaged by an AI service, which recommends what to do (assign a
-resource, replan around a blocked road, etc.). A human dispatcher approves
-or overrides those recommendations. **This backend is the single source of
+resource, replace one stuck behind a blocked road, etc.). A human coordinator
+approves those recommendations before anything is dispatched. **This backend is the single source of
 truth that all of that funnels through.** It owns:
 
 - The incident/resource/assignment data model and their state machines.
 - Concurrency safety — two simultaneous requests can never assign the same
   resource twice.
-- Atomicity — a multi-step operation (e.g. replanning) either fully applies
+- The approval gate — AI/n8n can only submit *pending* plans; dispatch
+  happens exclusively when a coordinator approves one.
+- Atomicity — a multi-step operation (e.g. approving a replacement) either fully applies
   or fully rolls back, never partially.
 - The append-only audit trail of every decision and state change.
 
@@ -45,8 +47,10 @@ app/
     id_generator.py      Human-readable IDs (INC-1042, AMB-02, ASG-887) via
                           native Postgres sequences.
     assignment_service.py   Create/update assignments; the locking
-                             primitives reused by replanning.
-    replanning_service.py   The road-block-reassignment flow.
+                             primitives reused everywhere else.
+    recommendation_service.py  Plan intake, replacement proposals, and
+                             the coordinator approval gate (dispatch).
+    disruption_service.py   Road-block reports (ETA revision, `blocked`).
     dashboard_service.py    Read-only aggregation for the frontend.
 alembic/               Migrations (single initial migration; schema is small
                         and stable — see "Migrations" below).
@@ -69,7 +73,9 @@ tests/                 pytest suite, run against a real (isolated) Postgres.
   FOR UPDATE` row locks (fixed ID order, to avoid deadlocks), a re-check of
   state after the lock is acquired, and a partial unique index in Postgres
   (`assignments(resource_id) WHERE status IN ('ASSIGNED','ACTIVE')`) as a
-  hard backstop. See `assignment_service.py` and `replanning_service.py`.
+  hard backstop. See `assignment_service.py` and `recommendation_service.py`.
+- Every write that touches a plan locks in the same order: incident →
+  recommendation → the incident's live assignments → resources (by ID).
 - The audit trail (`action_logs`) is append-only by omission: there is no
   PATCH/PUT/DELETE route for it anywhere, so it can't be rewritten via the
   API.
@@ -113,7 +119,9 @@ Copy `.env.example` to `.env` and adjust as needed:
 |---|---|---|
 | `DATABASE_URL` | `postgresql+psycopg2://reliefmesh:reliefmesh@localhost:5432/reliefmesh` | Dev/demo database connection. |
 | `AUTH_ENABLED` | `false` | If `true`, every request needs a matching `X-API-Key` header. Off by default so the demo/local dev is never blocked. |
-| `API_KEY` | `change-me` | Checked only when `AUTH_ENABLED=true`. |
+| `API_KEY` | `change-me` | Shared key, checked only when `AUTH_ENABLED=true`. |
+| `COORDINATOR_API_KEY` | *(empty)* | Key identifying the human coordinator. Required to approve plans when `AUTH_ENABLED=true`. |
+| `AUTOMATION_API_KEY` | *(empty)* | Key for n8n/AI. May submit plans, propose replacements and report disruptions; gets `403` on approval. |
 | `CORS_ORIGINS` | `*` | Comma-separated allowed origins. |
 | `APP_ENV` | `local` | Informational only, surfaced in `/health`. |
 | `TEST_DATABASE_URL` | *(unset)* | Optional override for the isolated test database (defaults to `reliefmesh_test` on the same host/credentials). See "Test database isolation." |
@@ -152,7 +160,7 @@ pytest
 ### Test database isolation
 
 Tests run against **real PostgreSQL**, never SQLite — the assignment/
-replanning tests exercise genuine `SELECT ... FOR UPDATE` locking and
+replacement tests exercise genuine `SELECT ... FOR UPDATE` locking and
 concurrent-transaction behavior that SQLite can't reproduce. To keep this
 from writing test data into your dev/demo database:
 
@@ -182,21 +190,25 @@ the live demo uses. It:
    `AMB-02` and `AMB-05`.
 2. Creates incident `INC-1042` ("Water entering Krishna Apartments Block C.
    My grandmother cannot walk.").
-3. Assigns `AMB-02` + `RESCUE-01` to it (an AI recommendation is logged
-   too).
-4. Replans: `AMB-02` hits a road block, so `AMB-05` takes over. `AMB-02` is
-   released, the old assignment is superseded (not deleted).
+3. Submits plan v1 (`AMB-02` + `RESCUE-01`) — pending, nothing dispatched.
+4. Approves v1 as the coordinator: both are dispatched (`ASG-887`, `ASG-888`).
+5. Reports a road block on `AMB-02` (ETA 6 → 24 min); the incident is `blocked`.
+6. Proposes replacement plan v2 (`AMB-05` + `RESCUE-01`, replacing `AMB-02`)
+   — pending again, `AMB-02` still dispatched.
+7. Approves v2: `AMB-02`'s assignment is superseded (not deleted) and it's
+   released, `AMB-05` is dispatched, `RESCUE-01` continues untouched.
 
 After running, `GET /dashboard` and `GET /activity-log` show the fully
-resolved narrative, ready to walk through live.
+resolved narrative, ready to walk through live. To drive the rest of the
+story live from the UI instead, stop early with
+`--stop-at {awaiting_approval,dispatched,blocked,awaiting_replacement}`.
 
 **Seed reset behavior:** by default the script *adds* to whatever's already
-in the target database. Pass `--reset` to `TRUNCATE`
-incidents/resources/assignments/action_logs first (and reset the ambulance/
-rescue-unit ID sequences, so `AMB-02`/`AMB-05`/`RESCUE-01` land correctly
-again) — only do this against your local dev database, never anything
-shared. Pass `--fleet-only` to seed just the resource roster and skip the
-incident/assignment/replan narrative.
+in the target database. Pass `--reset` to `TRUNCATE` every application
+table first (and reset the resource/report/recommendation ID sequences, so
+`AMB-02`/`AMB-05`/`RESCUE-01`/`REC-01` land correctly again) — only do this
+against your local dev database, never anything shared. Pass `--fleet-only`
+to seed just the resource roster and skip the incident narrative.
 
 ## Important API endpoints
 
@@ -215,10 +227,14 @@ substitute.
 | `POST /resources` | Register a resource (starts `AVAILABLE`). |
 | `GET /resources`, `GET /resources/{id}` | List/get resources, with status/type filters. |
 | `POST /resources/{id}/status` | Direct status transition (e.g. maintenance). |
-| `POST /assignments` | Atomically assign one or more available resources to an incident. |
+| `POST /assignments` | Atomically assign available resources, referencing an already-approved recommendation. |
 | `GET /assignments`, `GET /assignments/{id}` | List/get assignments, filterable by incident/resource/status. |
-| `POST /assignments/{id}/status` | Transition to `ACTIVE`/`COMPLETED`/`CANCELLED` (never `SUPERSEDED` — that's replanning-only). |
-| `POST /replanning` | Swap a resource on a live assignment for replacement(s), atomically. **The critical demo path.** |
+| `POST /assignments/{id}/status` | Transition to `ACTIVE`/`COMPLETED`/`CANCELLED` (never `SUPERSEDED` — only replacement approval sets that). |
+| `GET /integration/v1/incidents/{id}/recommendation` | Current (highest-version) plan, any state. |
+| `POST /integration/v1/incidents/{id}/recommendation` | Submit the initial plan (pending; idempotent on `analysis_revision`). |
+| `POST /integration/v1/incidents/{id}/disruptions` | Report an obstructed responder; incident becomes `blocked`. |
+| `POST /integration/v1/incidents/{id}/recommendation/replacement` | Propose a pending replacement plan for a blocked incident. |
+| `POST /integration/v1/incidents/{id}/recommendation/approve` | Coordinator-only. Approve the pending plan and dispatch it. **The critical demo path.** |
 | `GET /activity-log`, `POST /activity-log`, `GET /activity-log/{id}` | Append-only audit trail; filterable, paginated. |
 | `GET /dashboard` | Frontend-ready aggregated snapshot (counts, recent activity, current incidents/resources). |
 
@@ -230,14 +246,16 @@ A typical end-to-end flow through n8n for a new report:
    the text to the AI service for extraction.
 2. n8n calls `POST /incidents` with the AI's structured output (see payload
    below). The backend assigns `INC-1042` and logs `incident_received`.
-3. n8n asks the AI service for a resource recommendation, gets back
-   resource IDs, and (after human approval if your flow requires it) calls
-   `POST /assignments` with those resource IDs and `decision_source` set
-   appropriately.
-4. If a field report says a resource can't reach the scene (e.g. a road
-   block), n8n calls `POST /replanning` with the old resource and the AI's
-   suggested replacement(s).
-5. n8n polls `GET /activity-log?since=<timestamp>` and/or `GET /dashboard`
+3. n8n asks the AI service for a resource plan and submits it with
+   `POST /integration/v1/incidents/{id}/recommendation`. Nothing is
+   dispatched yet; the incident is `awaiting_approval`.
+4. A coordinator approves it (`.../recommendation/approve`), which
+   dispatches the resources.
+5. If a field report says a resource can't reach the scene (e.g. a road
+   block), n8n calls `.../disruptions`, then submits the AI's replacement
+   plan with `.../recommendation/replacement`. The coordinator approves it
+   like any other plan.
+6. n8n polls `GET /activity-log?since=<timestamp>` and/or `GET /dashboard`
    to drive notifications and the operator view.
 
 ## Example AI → backend payloads
@@ -266,74 +284,89 @@ A typical end-to-end flow through n8n for a new report:
 the `incident_received` action-log entry for provenance (source channel,
 raw text, merged report IDs, etc.).
 
-**Assigning resources after approval** (`POST /assignments`):
+**Submitting the initial plan** (`POST /integration/v1/incidents/INC-1042/recommendation`):
 
 ```json
 {
-  "incident_id": "INC-1042",
-  "resource_ids": ["AMB-02", "RESCUE-01"],
-  "decision_source": "ai",
-  "approved_by": "dispatcher_1",
-  "reason": "Medical emergency involving a vulnerable person",
-  "ai_recommendation": {
-    "incident_id": "INC-1042",
-    "priority_score": 94,
-    "recommended_resources": ["AMB-02", "RESCUE-01"],
-    "reason": "Medical emergency involving a vulnerable person",
-    "confidence": 0.91
-  }
+  "recommended_resources": ["AMB-02", "RESCUE-01"],
+  "reason": "plan.reason",
+  "explanation": [
+    {"key": "explain.distance", "params": {"id": "AMB-02", "distance": 2.1}},
+    {"key": "explain.water", "params": {"id": "RESCUE-01"}}
+  ],
+  "confidence": 0.91,
+  "priority_score": 94,
+  "analysis_revision": "analysis-1"
 }
 ```
 
-`ai_recommendation` is optional — pass it through when the assignment
-fulfills a specific AI recommendation, and it gets logged as its own
-`ai_recommendation_received` audit entry alongside the assignment.
+`reason` and explanation `key`s are frontend catalog keys; the backend
+stores them as-is. Resending the same `analysis_revision` with the same plan
+returns the existing recommendation (`200`) instead of creating another;
+with a different plan it's a `409 IDEMPOTENCY_CONFLICT`.
 
-## Replanning flow
-
-`POST /replanning` is the road-block scenario: a dispatched resource can no
-longer reach the incident, and the AI/human decision is to swap it for a
-different one.
+**Approving it** (`POST .../recommendation/approve`, coordinator key):
 
 ```json
-{
-  "incident_id": "INC-1042",
-  "old_resource_id": "AMB-02",
-  "new_resource_ids": ["AMB-05"],
-  "reason": "road_blocked",
-  "decision_source": "ai",
-  "approved_by": "dispatcher_1"
-}
+{"version": 1}
 ```
 
-What happens, atomically (all in one DB transaction — see
-`replanning_service.py`):
+`approved_by` is never accepted from the body — it's derived from the key.
 
-1. The incident is locked and checked (must not already be
-   `RESOLVED`/`CANCELLED`).
-2. The old assignment is locked — by `old_assignment_id` if given, else the
-   current assignment for `incident_id` + `old_resource_id` — and
-   re-validated as still live (`ASSIGNED`/`ACTIVE`) *after* the lock is
-   held. This is what makes concurrent replans of the same assignment safe:
-   the loser blocks on the lock, then sees the new state and fails cleanly
-   instead of double-superseding it.
-3. The old resource and all replacement resources are locked together, in
-   sorted-ID order (never deadlocks against a concurrent
-   assignment/replan touching an overlapping resource set).
-4. All replacement resources must be `AVAILABLE`, checked before anything
-   is mutated — an unavailable replacement leaves the old assignment
-   completely untouched (`409 Conflict`).
-5. The old assignment becomes `SUPERSEDED` (kept forever, never deleted)
-   and the old resource becomes `AVAILABLE` again.
-6. New `Assignment` row(s) are created (`ASSIGNED`) and the replacement
-   resource(s) become `DISPATCHED`.
-7. Every step is written to `action_logs` (`assignment_superseded`,
-   `assignment_created`, plus `ai_recommendation_received` if one was
-   passed) with enough metadata to reconstruct the full history later.
-8. Commit, or roll back everything on any failure — including the
-   partial-unique-index backstop catching a race that got past the row
-   locks.
+## Replacement flow
 
-The response includes the incident (with its current live assignments),
-the superseded assignment, and the new assignment(s) — everything a
-frontend needs to update its view in one call.
+The road-block scenario: a dispatched resource can no longer reach the
+incident. Every step is a separate call, and nothing is released or
+dispatched until the coordinator approves the replacement.
+
+1. **Report the disruption** (`POST .../disruptions`):
+
+   ```json
+   {"resource_id": "AMB-02", "eta_minutes": 24, "previous_eta_minutes": 6, "reason": "road_blocked"}
+   ```
+
+   The assignment's ETA is revised (the old one kept in
+   `previous_eta_minutes`), the incident moves to `blocked`, and
+   `AMB-02` stays `DISPATCHED`.
+
+2. **Propose the replacement** (`POST .../recommendation/replacement`):
+
+   ```json
+   {
+     "base_version": 1,
+     "replacement_for": "AMB-02",
+     "recommended_resources": ["AMB-05", "RESCUE-01"],
+     "reason": "plan.replacementReason",
+     "explanation": [
+       {"key": "explain.blocked", "params": {"id": "AMB-02", "old": 6, "eta": 24}},
+       {"key": "explain.available", "params": {"id": "AMB-05"}}
+     ],
+     "analysis_revision": "analysis-2"
+   }
+   ```
+
+   `recommended_resources` is the *complete* new plan, continuing responders
+   included. `base_version` must be the currently approved version (else
+   `409 STALE_PLAN`). This creates pending v2 and moves the incident to
+   `awaiting_replacement`.
+
+3. **Approve it** (`POST .../recommendation/approve` with `{"version": 2}`,
+   coordinator key). In one transaction, locked incident → recommendation →
+   live assignments → resources (by ID):
+   - responders no longer in the plan: assignment `SUPERSEDED` (kept
+     forever), resource back to `AVAILABLE`;
+   - continuing responders: untouched (same assignment row);
+   - newcomers: must all be `AVAILABLE` (else `409 RESOURCE_UNAVAILABLE`
+     and *nothing* changes), then dispatched with new assignments that
+     reference v2.
+
+   The incident returns to `dispatched`. Any failure — including the
+   partial-unique-index backstop catching a race — rolls back everything.
+
+Each step is written to `action_logs` (`road_block_detected`,
+`replanning_started`, `replacement_recommended`, `approval_requested`,
+`replacement_approved`, `assignment_superseded`, `resource_dispatched`,
+`redispatched`).
+
+The old `POST /replanning` endpoint, which swapped resources without
+approval, has been removed.

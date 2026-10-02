@@ -4,7 +4,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.core.domain_values import KNOWN_INCIDENT_TYPES
-from app.models.enums import IncidentStatus, Severity
+from app.models.enums import IncidentStatus, OperationalPhase, Severity
 from app.schemas.assignment import AssignmentResponse
 
 
@@ -87,6 +87,7 @@ class IncidentResponse(BaseModel):
     people_affected: int | None
     needs: list[str]
     status: IncidentStatus
+    operational_phase: OperationalPhase
     created_at: datetime
     updated_at: datetime
     current_assignments: list[AssignmentResponse] = Field(default_factory=list)

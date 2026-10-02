@@ -55,6 +55,9 @@ class AssignmentResponse(BaseModel):
     decision_source: str
     approved_by: str | None
     recommendation_id: str | None = None
+    eta_minutes: int | None = None
+    previous_eta_minutes: int | None = None
+    distance_km: float | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -65,30 +68,3 @@ class AssignmentStatusUpdate(BaseModel):
     status: AssignmentStatus
     reason: str | None = None
 
-
-class ReplanningRequest(BaseModel):
-    incident_id: str
-    old_resource_id: str = Field(description="The resource being released, e.g. AMB-02.")
-    old_assignment_id: str | None = Field(
-        default=None,
-        description="Explicit assignment to supersede. If omitted, the current live "
-        "assignment for incident_id + old_resource_id is used.",
-    )
-    new_resource_ids: list[str] = Field(min_length=1)
-    reason: str = Field(description='Why replanning was triggered, e.g. "road_blocked".')
-    decision_source: str
-    approved_by: str | None = None
-    ai_recommendation: AIRecommendation | None = None
-
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "incident_id": "INC-1042",
-                "old_resource_id": "AMB-02",
-                "new_resource_ids": ["AMB-05"],
-                "reason": "road_blocked",
-                "decision_source": "ai",
-                "approved_by": "dispatcher_1",
-            }
-        }
-    )

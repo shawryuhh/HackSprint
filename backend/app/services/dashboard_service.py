@@ -87,7 +87,9 @@ def get_dashboard(db: Session, activity_limit: int = 20) -> DashboardResponse:
     )
 
     recent_logs = db.scalars(
-        select(ActionLog).order_by(ActionLog.timestamp.desc()).limit(activity_limit)
+        select(ActionLog)
+        .order_by(ActionLog.timestamp.desc(), ActionLog.id.desc())
+        .limit(activity_limit)
     ).all()
 
     # "Current" incidents/resources means what needs attention right now —

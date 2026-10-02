@@ -1,9 +1,91 @@
 from datetime import datetime
-from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.enums import RecommendationState
+
+
+class ExplanationItem(BaseModel):
+    """Matches frontend's `RecommendationExplanation`: a localized catalog key
+    (e.g. "explain.blocked") plus flat params the UI interpolates. The backend
+    stores and returns these as-is; it never generates or interprets them."""
+
+    key: str = Field(min_length=1)
+    params: dict[str, str | int | float] = Field(default_factory=dict)
+
+
+class RecommendationCreate(BaseModel):
+    """Body for POST .../recommendation — the AI/n8n-produced initial plan.
+
+    Creating it reserves and dispatches nothing; it stays PENDING until a
+    coordinator approves it. `analysis_revision` doubles as the idempotency
+    key: resending the same revision with the same plan replays the existing
+    recommendation instead of failing or creating a second one.
+    """
+
+    recommended_resources: list[str] = Field(min_length=1)
+    reason: str = Field(min_length=1, description='Localized catalog key, e.g. "plan.reason".')
+    explanation: list[ExplanationItem] = Field(default_factory=list)
+    confidence: float | None = Field(default=None, ge=0, le=1)
+    priority_score: int | None = Field(default=None, ge=0, le=100)
+    analysis_revision: str | None = None
+
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={
+            "example": {
+                "recommended_resources": ["AMB-02", "RESCUE-01"],
+                "reason": "plan.reason",
+                "explanation": [
+                    {"key": "explain.distance", "params": {"id": "AMB-02", "distance": 2.1}},
+                    {"key": "explain.water", "params": {"id": "RESCUE-01"}},
+                ],
+                "confidence": 0.91,
+                "priority_score": 94,
+                "analysis_revision": "analysis-1",
+            }
+        },
+    )
+
+
+class RecommendationProposeReplacement(BaseModel):
+    """Body for POST .../recommendation/replacement.
+
+    `recommended_resources` is the complete new plan — continuing responders
+    included — not just the newcomers, matching the frontend mock's
+    replacement plan (["AMB-05", "RESCUE-01"] replacing AMB-02). Approval
+    later diffs it against the incident's live assignments.
+    """
+
+    base_version: int = Field(gt=0, description="The currently approved version being replaced.")
+    replacement_for: str = Field(min_length=1, description="The failed resource, e.g. AMB-02.")
+    recommended_resources: list[str] = Field(min_length=1)
+    reason: str = Field(min_length=1, description='Localized catalog key, e.g. "plan.replacementReason".')
+    explanation: list[ExplanationItem] = Field(default_factory=list)
+    confidence: float | None = Field(default=None, ge=0, le=1)
+    priority_score: int | None = Field(default=None, ge=0, le=100)
+    analysis_revision: str | None = None
+
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={
+            "example": {
+                "base_version": 1,
+                "replacement_for": "AMB-02",
+                "recommended_resources": ["AMB-05", "RESCUE-01"],
+                "reason": "plan.replacementReason",
+                "explanation": [
+                    {"key": "explain.blocked", "params": {"id": "AMB-02", "old": 6, "eta": 24}},
+                    {"key": "explain.available", "params": {"id": "AMB-05"}},
+                    {"key": "explain.eta", "params": {"id": "AMB-05", "eta": 9}},
+                    {"key": "explain.continues", "params": {"id": "RESCUE-01"}},
+                ],
+                "confidence": 0.91,
+                "priority_score": 94,
+                "analysis_revision": "analysis-2",
+            }
+        },
+    )
 
 
 class RecommendationApprove(BaseModel):
@@ -36,7 +118,7 @@ class RecommendationResponse(BaseModel):
     state: RecommendationState
     recommended_resources: list[str]
     reason: str
-    explanation: list[dict[str, Any]]
+    explanation: list[ExplanationItem]
     confidence: float | None = None
     priority_score: int | None = None
     replacementFor: str | None = Field(default=None, validation_alias="replacement_for_resource_id")

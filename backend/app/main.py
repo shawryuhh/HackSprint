@@ -6,10 +6,10 @@ from app.api.routes import (
     activity_log,
     assignments,
     dashboard,
+    disruptions,
     health,
     incidents,
     recommendations,
-    replanning,
     resources,
 )
 from app.core.config import get_settings
@@ -39,15 +39,16 @@ OPENAPI_TAGS = [
         "never be assigned twice at once, enforced by row locking and a database constraint.",
     },
     {
-        "name": "replanning",
-        "description": "Swaps a resource on a live assignment for one or more replacements "
-        "(e.g. a road block), atomically. The critical demo path.",
-    },
-    {
         "name": "recommendations",
         "description": "AI-proposed resource plans awaiting human approval. Approval is the "
         "only path to recommendation-driven dispatch — it atomically approves the plan, "
-        "creates the resulting assignments, and updates incident/resource state together.",
+        "creates the resulting assignments, and updates incident/resource state together. "
+        "Replacement plans for blocked incidents go through the same gate.",
+    },
+    {
+        "name": "disruptions",
+        "description": "Reports that a dispatched responder is obstructed (e.g. a road block). "
+        "Records the revised ETA and blocks the incident; never releases or reassigns anything.",
     },
     {
         "name": "activity-log",
@@ -109,4 +110,4 @@ app.include_router(assignments.router)
 app.include_router(recommendations.router)
 app.include_router(activity_log.router)
 app.include_router(dashboard.router)
-app.include_router(replanning.router)
+app.include_router(disruptions.router)

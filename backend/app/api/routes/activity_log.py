@@ -24,8 +24,7 @@ router = APIRouter(
     status_code=201,
     summary="Record an activity log entry",
     description="For events that don't map to a dedicated state-changing endpoint, e.g. a "
-    "duplicate merge decided upstream by the AI service, or a roadblock report ahead of "
-    "replanning.",
+    "duplicate merge decided upstream by the AI service.",
     responses=responses(VALIDATION_FAILED),
 )
 def create_activity_log_entry(

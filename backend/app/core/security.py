@@ -9,7 +9,9 @@ existing router. `require_coordinator` is additive (D9): it distinguishes a
 human coordinator from n8n/AI automation using two separate static keys, and
 is used only by endpoints — like recommendation approval — where the caller's
 identity is itself part of the business rule (`approved_by` must never be
-trusted from the request body).
+trusted from the request body). `verify_any_api_key` accepts any of the
+three configured keys, for plan/disruption submissions any authenticated
+caller (n8n, AI, or a coordinator) may make.
 """
 
 from fastapi import Depends, Header, HTTPException, status
@@ -26,6 +28,24 @@ def verify_api_key(
     if not settings.auth_enabled:
         return
     if x_api_key is None or x_api_key != settings.api_key:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing or invalid API key.",
+        )
+
+
+def verify_any_api_key(
+    x_api_key: str | None = Header(default=None),
+    settings: Settings = Depends(get_settings),
+) -> None:
+    if not settings.auth_enabled:
+        return
+    accepted = {
+        key
+        for key in (settings.api_key, settings.coordinator_api_key, settings.automation_api_key)
+        if key
+    }
+    if x_api_key is None or x_api_key not in accepted:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Missing or invalid API key.",

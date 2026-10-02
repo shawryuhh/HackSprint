@@ -15,7 +15,8 @@ from app.core.config import Settings, get_settings
 from app.db.session import SessionLocal
 from app.main import app
 from app.models.assignment import Assignment
-from app.models.enums import AssignmentStatus
+from app.models.enums import AssignmentStatus, OperationalPhase
+from app.models.incident import Incident
 from app.models.recommendation import Recommendation
 from app.services.id_generator import next_recommendation_id
 
@@ -52,6 +53,14 @@ def _create_pending_recommendation(incident_id, resource_ids, version=1, **overr
             **fields,
         )
         db.add(rec)
+        # Approval is phase-gated, so put the incident where the intake/
+        # proposal endpoints would have left it.
+        incident = db.get(Incident, incident_id)
+        incident.operational_phase = (
+            OperationalPhase.AWAITING_REPLACEMENT
+            if fields.get("replacement_for_resource_id")
+            else OperationalPhase.AWAITING_APPROVAL
+        )
         db.commit()
     return rec_id
 
@@ -377,3 +386,19 @@ def test_missing_key_cannot_approve_when_auth_enabled(client, auth_settings):
         f"/integration/v1/incidents/{incident_id}/recommendation/approve", json={"version": 1}
     )
     assert response.status_code == 401
+
+
+def test_approval_requires_awaiting_approval_phase(client):
+    incident_id = _create_incident(client)
+    resource_id = _create_resource(client)
+    _create_pending_recommendation(incident_id, [resource_id])
+    with SessionLocal() as db:
+        db.get(Incident, incident_id).operational_phase = OperationalPhase.BLOCKED
+        db.commit()
+
+    response = client.post(
+        f"/integration/v1/incidents/{incident_id}/recommendation/approve", json={"version": 1}
+    )
+    assert response.status_code == 409
+    assert response.json()["code"] == "STALE_PLAN"
+    assert client.get(f"/resources/{resource_id}").json()["status"] == "AVAILABLE"

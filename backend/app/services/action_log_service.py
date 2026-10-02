@@ -121,7 +121,7 @@ def list_action_logs(
         stmt = stmt.where(ActionLog.assignment_id == assignment_id)
     if since is not None:
         stmt = stmt.where(ActionLog.timestamp >= since)
-    stmt = stmt.order_by(ActionLog.timestamp.desc()).limit(limit).offset(offset)
+    stmt = stmt.order_by(ActionLog.timestamp.desc(), ActionLog.id.desc()).limit(limit).offset(offset)
 
     logs = db.scalars(stmt).all()
     return [to_response(log) for log in logs]

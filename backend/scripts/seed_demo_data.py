@@ -1,21 +1,23 @@
 """Seeds demo data for the canonical Krishna Apartments scenario.
 
-Run with:  python -m scripts.seed_demo_data [--reset] [--fleet-only]
+Run with:  python -m scripts.seed_demo_data [--reset] [--fleet-only] [--stop-at STAGE]
 
 Goes through the real service layer (incident_service, resource_service,
-assignment_service, replanning_service) rather than raw INSERTs, so the
+recommendation_service, disruption_service) rather than raw INSERTs, so the
 seeded data is guaranteed to satisfy exactly the same rules the live API
-enforces — this script is effectively the AI/n8n side of the demo, feeding
-already-decided payloads into the same contracts a real integration would
-use. It also serves as an end-to-end smoke test of the full incident ->
-assign -> replan flow against whatever DATABASE_URL points at.
+enforces — this script is effectively the AI/n8n and coordinator sides of the
+demo, feeding already-decided payloads into the same contracts a real
+integration would use. It also serves as an end-to-end smoke test of the full
+recommendation -> approval -> disruption -> replacement proposal ->
+replacement approval flow against whatever DATABASE_URL points at.
+--stop-at leaves the incident at an earlier stage, so the remaining steps can
+be driven live from the UI during a demo.
 
 By default this ADDS to whatever's already in the target database. Pass
---reset to truncate incidents/resources/assignments/action_logs first (and
-reset the ambulance/rescue-unit ID sequences) — only do this against a
-database you're fine losing all rows in, e.g. your local dev DB before a
-demo. Never point this at anything shared without --reset being a deliberate
-choice.
+--reset to truncate every application table first (and reset the ID
+sequences this script relies on) — only do this against a database you're
+fine losing all rows in, e.g. your local dev DB before a demo. Never point
+this at anything shared without --reset being a deliberate choice.
 """
 
 import argparse
@@ -25,13 +27,25 @@ from sqlalchemy.orm import Session
 
 from app.db.session import SessionLocal
 from app.models.enums import Severity
-from app.schemas.assignment import AssignmentCreate, ReplanningRequest
+from app.schemas.disruption import DisruptionReport
 from app.schemas.incident import IncidentCreate
+from app.schemas.recommendation import (
+    RecommendationApprove,
+    RecommendationCreate,
+    RecommendationProposeReplacement,
+)
 from app.schemas.resource import ResourceCreate
-from app.services import assignment_service, incident_service, replanning_service, resource_service
+from app.services import disruption_service, incident_service, recommendation_service, resource_service
 from app.services.id_generator import resource_prefix_for_type
 
-APP_TABLES = ["incidents", "resources", "assignments", "action_logs"]
+APP_TABLES = ["incidents", "resources", "assignments", "action_logs", "reports", "recommendations"]
+
+# Identity the seeded approvals are recorded under — the same value
+# require_coordinator derives for the coordinator API key over HTTP.
+COORDINATOR = "coordinator"
+
+# Stages --stop-at can leave the canonical incident at, in narrative order.
+STAGES = ["awaiting_approval", "dispatched", "blocked", "awaiting_replacement", "replaced"]
 
 # Order matters: ambulances are created in this order so the canonical
 # narrative's AMB-02 and AMB-05 land on the resources actually used in it.
@@ -64,6 +78,10 @@ def reset_tables(db: Session) -> None:
         ).scalar()
         if exists:
             db.execute(text(f'SELECT setval(\'"{seq_name}"\', 1, false)'))
+    # Fixed sequences from the migrations; incident/assignment are advanced
+    # explicitly by seed_narrative_scenario anyway.
+    for seq_name in ("report_seq", "recommendation_seq"):
+        db.execute(text(f"SELECT setval('{seq_name}', 1, false)"))
     db.commit()
 
 
@@ -82,7 +100,7 @@ def seed_fleet(db: Session) -> None:
         print(f"  {resource.id:<10} {resource.type:<12} {resource.location}")
 
 
-def seed_narrative_scenario(db: Session) -> None:
+def seed_narrative_scenario(db: Session, stop_at: str = "replaced") -> None:
     # Advances the sequences so this run's incident/assignment IDs match the
     # canonical demo narrative (INC-1042, ASG-887) regardless of what ran
     # before. Both sequences always exist (created in the initial migration),
@@ -117,39 +135,75 @@ def seed_narrative_scenario(db: Session) -> None:
     rescue_01 = resource_service.get_resource(db, "RESCUE-01")
     amb_05 = resource_service.get_resource(db, "AMB-05")
 
-    assignment_service.create_assignment(
-        db,
-        AssignmentCreate(
-            incident_id=incident.id,
-            resource_ids=[amb_02.id, rescue_01.id],
-            decision_source="ai",
-            approved_by="dispatcher_1",
-            reason="Medical emergency involving a vulnerable person",
-            ai_recommendation={
-                "incident_id": incident.id,
-                "priority_score": 94,
-                "recommended_resources": [amb_02.id, rescue_01.id],
-                "reason": "Medical emergency involving a vulnerable person",
-                "confidence": 0.91,
-            },
-        ),
-    )
-
-    replanning_service.replan(
-        db,
-        ReplanningRequest(
-            incident_id=incident.id,
-            old_resource_id=amb_02.id,
-            new_resource_ids=[amb_05.id],
-            reason="road_blocked",
-            decision_source="ai",
-            approved_by="dispatcher_1",
-        ),
-    )
+    def reached(stage: str) -> bool:
+        return STAGES.index(stage) >= STAGES.index(stop_at)
 
     print(f"\nSeeded canonical scenario on incident {incident.id}:")
-    print(f"  {amb_02.id} assigned, then replanned to {amb_05.id} (road block)")
-    print(f"  {rescue_01.id} still dispatched to {incident.id}")
+
+    # Mirrors the frontend mock fixtures (plan.reason / explain.* keys) so the
+    # UI renders the seeded plans exactly like the mock ones.
+    initial = recommendation_service.create_recommendation(
+        db,
+        incident.id,
+        RecommendationCreate(
+            recommended_resources=[amb_02.id, rescue_01.id],
+            reason="plan.reason",
+            explanation=[
+                {"key": "explain.distance", "params": {"id": amb_02.id, "distance": 2.1}},
+                {"key": "explain.water", "params": {"id": rescue_01.id}},
+            ],
+            confidence=0.91,
+            priority_score=94,
+            analysis_revision="seed-analysis-1",
+        ),
+    )[0]
+    print(f"  {initial.id} v{initial.version}: {amb_02.id} + {rescue_01.id} proposed, awaiting approval")
+    if reached("awaiting_approval"):
+        return
+
+    recommendation_service.approve_recommendation(
+        db, incident.id, RecommendationApprove(version=initial.version), COORDINATOR
+    )
+    print(f"  v{initial.version} approved: {amb_02.id} + {rescue_01.id} dispatched")
+    if reached("dispatched"):
+        return
+
+    disruption_service.report_disruption(
+        db,
+        incident.id,
+        DisruptionReport(resource_id=amb_02.id, eta_minutes=24, previous_eta_minutes=6),
+    )
+    print(f"  {amb_02.id} blocked by road obstruction (ETA 6 -> 24 min)")
+    if reached("blocked"):
+        return
+
+    replacement = recommendation_service.propose_replacement(
+        db,
+        incident.id,
+        RecommendationProposeReplacement(
+            base_version=initial.version,
+            replacement_for=amb_02.id,
+            recommended_resources=[amb_05.id, rescue_01.id],
+            reason="plan.replacementReason",
+            explanation=[
+                {"key": "explain.blocked", "params": {"id": amb_02.id, "old": 6, "eta": 24}},
+                {"key": "explain.available", "params": {"id": amb_05.id}},
+                {"key": "explain.eta", "params": {"id": amb_05.id, "eta": 9}},
+                {"key": "explain.continues", "params": {"id": rescue_01.id}},
+            ],
+            confidence=0.91,
+            priority_score=94,
+            analysis_revision="seed-analysis-2",
+        ),
+    )[0]
+    print(f"  {replacement.id} v{replacement.version}: {amb_05.id} proposed to replace {amb_02.id}, awaiting approval")
+    if reached("awaiting_replacement"):
+        return
+
+    recommendation_service.approve_recommendation(
+        db, incident.id, RecommendationApprove(version=replacement.version), COORDINATOR
+    )
+    print(f"  v{replacement.version} approved: {amb_02.id} released, {amb_05.id} dispatched, {rescue_01.id} continues")
 
 
 def main() -> None:
@@ -157,12 +211,18 @@ def main() -> None:
     parser.add_argument(
         "--reset",
         action="store_true",
-        help="Truncate incidents/resources/assignments/action_logs first.",
+        help="Truncate all application tables first.",
     )
     parser.add_argument(
         "--fleet-only",
         action="store_true",
-        help="Seed the resource fleet only; skip the incident/assignment/replan narrative.",
+        help="Seed the resource fleet only; skip the incident/recommendation narrative.",
+    )
+    parser.add_argument(
+        "--stop-at",
+        choices=STAGES,
+        default="replaced",
+        help="Leave the canonical incident at this stage (default: run the full flow).",
     )
     args = parser.parse_args()
 
@@ -173,7 +233,7 @@ def main() -> None:
         seed_fleet(db)
 
         if not args.fleet_only:
-            seed_narrative_scenario(db)
+            seed_narrative_scenario(db, args.stop_at)
 
 
 if __name__ == "__main__":

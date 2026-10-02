@@ -63,7 +63,8 @@ TERMINAL_INCIDENT_STATUSES = (IncidentStatus.RESOLVED, IncidentStatus.CANCELLED)
 
 # Resource status a resource should land in when an assignment moves to each
 # of these statuses. SUPERSEDED is deliberately absent: it's only ever set by
-# the (future) replanning flow, which handles the resource hand-off itself.
+# replacement approval (recommendation_service), which handles the resource
+# hand-off itself.
 _RESOURCE_STATUS_FOR_ASSIGNMENT_STATUS = {
     AssignmentStatus.ACTIVE: ResourceStatus.ACTIVE,
     AssignmentStatus.COMPLETED: ResourceStatus.AVAILABLE,
@@ -278,7 +279,7 @@ def update_assignment_status(
 ) -> AssignmentResponse:
     if payload.status == AssignmentStatus.SUPERSEDED:
         raise ValidationFailedError(
-            "SUPERSEDED is only set by the replanning flow, not directly."
+            "SUPERSEDED is only set by approving a replacement plan, not directly."
         )
 
     try:

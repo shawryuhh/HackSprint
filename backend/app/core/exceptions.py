@@ -51,6 +51,40 @@ class ResourceUnavailableError(ConflictError):
         super().__init__(message, code="RESOURCE_UNAVAILABLE")
 
 
+class PendingPlanExistsError(ConflictError):
+    """A new plan can't be submitted while the incident still has a PENDING
+    one awaiting a coordinator decision (code=PENDING_PLAN_EXISTS)."""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message, code="PENDING_PLAN_EXISTS")
+
+
+class IdempotencyConflictError(ConflictError):
+    """An analysis_revision already used for this incident was resent with a
+    different plan — a retry must resend the same payload
+    (code=IDEMPOTENCY_CONFLICT)."""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message, code="IDEMPOTENCY_CONFLICT")
+
+
+class ResourceNotAssignedError(ConflictError):
+    """The resource a disruption/replacement refers to has no live
+    assignment on the incident (code=RESOURCE_NOT_ASSIGNED)."""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message, code="RESOURCE_NOT_ASSIGNED")
+
+
+class InvalidResourcesError(ValidationFailedError):
+    """A submitted resource list is semantically invalid — duplicates, or a
+    replacement plan that still includes the failed resource
+    (code=INVALID_RESOURCES)."""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message, code="INVALID_RESOURCES")
+
+
 class ApprovalRequiredError(ConflictError):
     """Raised by POST /assignments when the requested dispatch isn't backed
     by a valid, current, APPROVED recommendation covering the requested
