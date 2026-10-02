@@ -1,12 +1,13 @@
 """Assignment creation and lifecycle.
 
 This is the concurrency-sensitive core of the backend: turning an
-AI-recommended-and-approved (or human-decided) resource list into real
-assignments must never let two requests hand the same resource to two
-incidents. Safety here is layered, not relied on from a single mechanism:
+approved resource plan into real assignments must never let two requests
+hand the same resource to two incidents. Safety here is layered, not relied
+on from a single mechanism:
 
-1. `SELECT ... FOR UPDATE` on the target incident and resources, taken in a
-   fixed order (incident, then resources sorted by id), so concurrent
+1. `SELECT ... FOR UPDATE` on the target incident, the authorizing
+   recommendation and the resources, taken in a fixed order (incident,
+   then recommendation, then resources sorted by id), so concurrent
    requests serialize instead of deadlocking each other.
 2. Re-checking resource status *after* the lock is held, before writing
    anything.
@@ -18,16 +19,35 @@ incidents. Safety here is layered, not relied on from a single mechanism:
 All writes for one call (incident status, resource status(es), assignment
 row(s), action log entries) happen in a single transaction: either all of it
 commits, or none of it does.
+
+POST /assignments is *not* a first-dispatch gate (Phase 4): every call must
+reference the incident's current APPROVED recommendation, and every
+requested resource must belong to it — an arbitrary decision_source like
+"ai" no longer authorizes anything by itself. Real dispatch happens as part
+of approving a recommendation (recommendation_service.approve_recommendation
+creates the assignments directly, in the same transaction as the approval).
+This endpoint's remaining role is a compatibility one — confirming/creating
+an assignment for a resource that's genuinely part of an already-approved
+plan, idempotently returning the existing live assignment for a pair that's
+already been dispatched, per INTEGRATION_CONTRACT.md's createAssignment.
 """
 
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.core.exceptions import ConflictError, NotFoundError, ValidationFailedError
+from app.core.exceptions import (
+    ApprovalRequiredError,
+    ConflictError,
+    NotFoundError,
+    ResourceUnavailableError,
+    StaleRecommendationError,
+    ValidationFailedError,
+)
 from app.models.assignment import Assignment
-from app.models.enums import AssignmentStatus, IncidentStatus, ResourceStatus
+from app.models.enums import AssignmentStatus, IncidentStatus, RecommendationState, ResourceStatus
 from app.models.incident import Incident
+from app.models.recommendation import Recommendation
 from app.models.resource import Resource
 from app.schemas.assignment import AssignmentCreate, AssignmentResponse, AssignmentStatusUpdate
 from app.services import id_generator
@@ -93,6 +113,34 @@ def lock_resources(db: Session, resource_ids: list[str]) -> list[Resource]:
     return resources
 
 
+def _lock_authorizing_recommendation(db: Session, incident_id: str, recommendation_id: str) -> Recommendation:
+    recommendation = db.execute(
+        select(Recommendation).where(Recommendation.id == recommendation_id).with_for_update()
+    ).scalar_one_or_none()
+    if recommendation is None:
+        raise NotFoundError(f"Recommendation '{recommendation_id}' not found.")
+    if recommendation.incident_id != incident_id:
+        raise ApprovalRequiredError(
+            f"Recommendation '{recommendation_id}' does not belong to incident '{incident_id}'."
+        )
+
+    current_version = db.execute(
+        select(func.max(Recommendation.version)).where(Recommendation.incident_id == incident_id)
+    ).scalar_one()
+    if recommendation.version != current_version:
+        raise StaleRecommendationError(
+            f"Recommendation '{recommendation_id}' (version {recommendation.version}) is no "
+            f"longer current for incident '{incident_id}'; version {current_version} is."
+        )
+
+    if recommendation.state != RecommendationState.APPROVED:
+        raise ApprovalRequiredError(
+            f"Recommendation '{recommendation_id}' is {recommendation.state.value}, not approved; "
+            "dispatch requires an approved recommendation."
+        )
+    return recommendation
+
+
 def create_assignment(db: Session, payload: AssignmentCreate) -> list[AssignmentResponse]:
     try:
         incident = lock_incident(db, payload.incident_id)
@@ -101,16 +149,44 @@ def create_assignment(db: Session, payload: AssignmentCreate) -> list[Assignment
                 f"Incident '{incident.id}' is {incident.status.value}; cannot assign resources."
             )
 
+        recommendation = _lock_authorizing_recommendation(db, incident.id, payload.recommendation_id)
+        not_approved = [
+            rid for rid in payload.resource_ids if rid not in recommendation.recommended_resources
+        ]
+        if not_approved:
+            raise ApprovalRequiredError(
+                f"Resource(s) not part of approved recommendation '{recommendation.id}': "
+                f"{', '.join(not_approved)}."
+            )
+
         resources = lock_resources(db, payload.resource_ids)
-        unavailable = [r.id for r in resources if r.status != ResourceStatus.AVAILABLE]
+
+        # Idempotent per INTEGRATION_CONTRACT.md's createAssignment: a
+        # resource that already has a live assignment for *this* incident
+        # (most commonly because approving the recommendation already
+        # dispatched it) is returned as-is, not re-created or rejected as
+        # unavailable.
+        existing_live_by_resource = {
+            a.resource_id: a
+            for a in db.execute(
+                select(Assignment).where(
+                    Assignment.incident_id == incident.id,
+                    Assignment.resource_id.in_([r.id for r in resources]),
+                    Assignment.status.in_(LIVE_ASSIGNMENT_STATUSES),
+                )
+            ).scalars()
+        }
+
+        to_create = [r for r in resources if r.id not in existing_live_by_resource]
+        unavailable = [r.id for r in to_create if r.status != ResourceStatus.AVAILABLE]
         if unavailable:
-            raise ConflictError(
+            raise ResourceUnavailableError(
                 f"Resource(s) not AVAILABLE: {', '.join(unavailable)}."
             )
 
         # UNASSIGNED -> ASSIGNED on first resource; already-ASSIGNED/ACTIVE
         # incidents just gain another live assignment with no status change.
-        if incident.status == IncidentStatus.UNASSIGNED:
+        if to_create and incident.status == IncidentStatus.UNASSIGNED:
             incident.status = IncidentStatus.ASSIGNED
 
         if payload.ai_recommendation is not None:
@@ -123,7 +199,7 @@ def create_assignment(db: Session, payload: AssignmentCreate) -> list[Assignment
             )
 
         created: list[Assignment] = []
-        for resource in resources:
+        for resource in to_create:
             assert_transition_allowed(
                 "Resource", resource.status, ResourceStatus.DISPATCHED, ALLOWED_RESOURCE_TRANSITIONS
             )
@@ -135,7 +211,8 @@ def create_assignment(db: Session, payload: AssignmentCreate) -> list[Assignment
                 resource_id=resource.id,
                 status=AssignmentStatus.ASSIGNED,
                 decision_source=payload.decision_source,
-                approved_by=payload.approved_by,
+                approved_by=recommendation.decided_by,
+                recommendation_id=recommendation.id,
             )
             db.add(assignment)
             db.flush()
@@ -149,13 +226,14 @@ def create_assignment(db: Session, payload: AssignmentCreate) -> list[Assignment
                 incident_id=incident.id,
                 resource_id=resource.id,
                 assignment_id=assignment.id,
-                metadata={"approved_by": payload.approved_by} if payload.approved_by else None,
+                metadata={"approved_by": recommendation.decided_by, "recommendation_id": recommendation.id},
             )
 
         db.commit()
-        for assignment in created:
+        result_assignments = [*existing_live_by_resource.values(), *created]
+        for assignment in result_assignments:
             db.refresh(assignment)
-        return [to_response(assignment) for assignment in created]
+        return [to_response(assignment) for assignment in result_assignments]
     except IntegrityError:
         # Backstop: the partial unique index caught a race that somehow got
         # past the row locks above (e.g. a concurrent writer outside this

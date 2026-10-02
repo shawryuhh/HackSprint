@@ -1,6 +1,10 @@
 import threading
 from concurrent.futures import ThreadPoolExecutor
 
+from app.db.session import SessionLocal
+from app.models.recommendation import Recommendation
+from app.services.id_generator import next_recommendation_id
+
 
 def _create_incident(client, location="Krishna Apartments, Block C", severity="CRITICAL"):
     return client.post(
@@ -16,13 +20,26 @@ def _create_resource(client, resource_type="ambulance", location="Depot"):
 
 
 def _assign(client, incident_id, resource_id):
+    """Replanning only cares about there being a live assignment to swap out
+    of — not the assignment-creation gate itself — so this writes an
+    APPROVED recommendation straight through the ORM (Phase 4) the same way
+    earlier phases wrote Recommendation rows directly."""
+    with SessionLocal() as db:
+        rec_id = next_recommendation_id(db)
+        db.add(Recommendation(
+            id=rec_id, incident_id=incident_id, version=1,
+            recommended_resources=[resource_id], reason="plan.reason",
+            state="approved", decided_by="coordinator",
+        ))
+        db.commit()
+
     response = client.post(
         "/assignments",
         json={
             "incident_id": incident_id,
             "resource_ids": [resource_id],
+            "recommendation_id": rec_id,
             "decision_source": "ai",
-            "approved_by": "dispatcher_1",
         },
     )
     assert response.status_code == 201

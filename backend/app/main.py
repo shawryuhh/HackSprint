@@ -8,6 +8,7 @@ from app.api.routes import (
     dashboard,
     health,
     incidents,
+    recommendations,
     replanning,
     resources,
 )
@@ -41,6 +42,12 @@ OPENAPI_TAGS = [
         "name": "replanning",
         "description": "Swaps a resource on a live assignment for one or more replacements "
         "(e.g. a road block), atomically. The critical demo path.",
+    },
+    {
+        "name": "recommendations",
+        "description": "AI-proposed resource plans awaiting human approval. Approval is the "
+        "only path to recommendation-driven dispatch — it atomically approves the plan, "
+        "creates the resulting assignments, and updates incident/resource state together.",
     },
     {
         "name": "activity-log",
@@ -82,23 +89,24 @@ app.add_middleware(
 
 @app.exception_handler(NotFoundError)
 def handle_not_found(request: Request, exc: NotFoundError) -> JSONResponse:
-    return JSONResponse(status_code=404, content={"detail": exc.message})
+    return JSONResponse(status_code=404, content={"detail": exc.message, "code": exc.code})
 
 
 @app.exception_handler(ConflictError)
 def handle_conflict(request: Request, exc: ConflictError) -> JSONResponse:
-    return JSONResponse(status_code=409, content={"detail": exc.message})
+    return JSONResponse(status_code=409, content={"detail": exc.message, "code": exc.code})
 
 
 @app.exception_handler(ValidationFailedError)
 def handle_validation_failed(request: Request, exc: ValidationFailedError) -> JSONResponse:
-    return JSONResponse(status_code=422, content={"detail": exc.message})
+    return JSONResponse(status_code=422, content={"detail": exc.message, "code": exc.code})
 
 
 app.include_router(health.router)
 app.include_router(incidents.router)
 app.include_router(resources.router)
 app.include_router(assignments.router)
+app.include_router(recommendations.router)
 app.include_router(activity_log.router)
 app.include_router(dashboard.router)
 app.include_router(replanning.router)

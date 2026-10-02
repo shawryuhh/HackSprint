@@ -11,5 +11,6 @@ class ErrorResponse(BaseModel):
     """
 
     detail: str
+    code: str | None = None
 
-    model_config = {"json_schema_extra": {"example": {"detail": "Incident 'INC-9999' not found."}}}
+    model_config = {"json_schema_extra": {"example": {"detail": "Incident 'INC-9999' not found.", "code": None}}}

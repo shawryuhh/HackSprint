@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Index, String, func, text
+from sqlalchemy import DateTime, Float, ForeignKey, Index, Integer, String, func, text
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy import Enum as SAEnum
 
@@ -41,6 +41,20 @@ class Assignment(Base):
 
     decision_source: Mapped[str] = mapped_column(String, nullable=False)
     approved_by: Mapped[str | None] = mapped_column(String, nullable=True)
+
+    # Traces this assignment back to the approved plan that authorized it
+    # (TEAM_INTEGRATION_PLAN.md D4). Nullable: existing/legacy assignments
+    # and assignments created outside the recommendation flow have none.
+    recommendation_id: Mapped[str | None] = mapped_column(
+        String, ForeignKey("recommendations.id", ondelete="SET NULL"), nullable=True
+    )
+
+    # Supplied estimate, not invented routing (see plan's "honest ETA"
+    # requirement). previous_eta_minutes is set when a road_obstruction
+    # event revises eta_minutes, so the prior value isn't lost.
+    eta_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    distance_km: Mapped[float | None] = mapped_column(Float, nullable=True)
+    previous_eta_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

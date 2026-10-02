@@ -1,4 +1,8 @@
 def test_dashboard_aggregates_incidents_resources_and_activity(client):
+    from app.db.session import SessionLocal
+    from app.models.recommendation import Recommendation
+    from app.services.id_generator import next_recommendation_id
+
     incident_id = client.post(
         "/incidents",
         json={"location": "Krishna Apartments", "type": "flood", "severity": "CRITICAL"},
@@ -6,9 +10,22 @@ def test_dashboard_aggregates_incidents_resources_and_activity(client):
     resource_id = client.post(
         "/resources", json={"type": "ambulance", "location": "Depot 1"}
     ).json()["id"]
+
+    with SessionLocal() as db:
+        rec_id = next_recommendation_id(db)
+        db.add(Recommendation(
+            id=rec_id, incident_id=incident_id, version=1,
+            recommended_resources=[resource_id], reason="plan.reason",
+            state="approved", decided_by="coordinator",
+        ))
+        db.commit()
+
     client.post(
         "/assignments",
-        json={"incident_id": incident_id, "resource_ids": [resource_id], "decision_source": "ai"},
+        json={
+            "incident_id": incident_id, "resource_ids": [resource_id],
+            "recommendation_id": rec_id, "decision_source": "ai",
+        },
     )
 
     response = client.get("/dashboard")

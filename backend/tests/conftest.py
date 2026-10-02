@@ -35,7 +35,10 @@ BACKEND_DIR = Path(__file__).resolve().parent.parent
 
 # Truncated after every test, in no particular order — CASCADE takes care of
 # the foreign-key dependencies between them regardless of listing order.
-APP_TABLES = ["incidents", "resources", "assignments", "action_logs"]
+APP_TABLES = [
+    "incidents", "resources", "assignments", "action_logs",
+    "reports", "recommendations",
+]
 
 
 def _ensure_test_database_exists() -> None:

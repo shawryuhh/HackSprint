@@ -12,11 +12,19 @@ class AssignmentCreate(BaseModel):
         min_length=1,
         description="One or more resources to assign to the incident in a single atomic operation.",
     )
+    recommendation_id: str = Field(
+        description="The incident's current APPROVED recommendation authorizing this dispatch. "
+        "Every requested resource must be a member of its recommended_resources — this is the "
+        "human approval gate; there is no direct-dispatch path that skips it (Phase 4)."
+    )
     decision_source: str = Field(
-        description='Who/what decided this assignment, e.g. "ai", "human", "n8n".'
+        description='Who/what triggered this call, e.g. "ai", "human", "n8n" — descriptive only, '
+        "not itself an authorization; approved_by is always derived from the recommendation."
     )
     approved_by: str | None = Field(
-        default=None, description="Identity of the human who approved this assignment, if any."
+        default=None,
+        description="Ignored. approved_by is always overwritten server-side from the "
+        "recommendation's own decided_by — never trusted from the request body.",
     )
     reason: str | None = None
     ai_recommendation: AIRecommendation | None = Field(
@@ -29,9 +37,9 @@ class AssignmentCreate(BaseModel):
             "example": {
                 "incident_id": "INC-1042",
                 "resource_ids": ["AMB-02", "RESCUE-01"],
-                "decision_source": "ai",
-                "approved_by": "dispatcher_1",
-                "reason": "Medical emergency involving a vulnerable person",
+                "recommendation_id": "REC-01",
+                "decision_source": "n8n",
+                "reason": "Confirming dispatch of the approved plan",
             }
         }
     )
@@ -46,6 +54,7 @@ class AssignmentResponse(BaseModel):
     completed_at: datetime | None
     decision_source: str
     approved_by: str | None
+    recommendation_id: str | None = None
     created_at: datetime
     updated_at: datetime
 

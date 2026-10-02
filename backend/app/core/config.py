@@ -9,6 +9,13 @@ class Settings(BaseSettings):
     database_url: str
     auth_enabled: bool = False
     api_key: str = ""
+
+    # Two-key model (TEAM_INTEGRATION_PLAN.md D9), used only by endpoints
+    # that need to tell a human coordinator apart from n8n/AI automation —
+    # everything else still uses the single api_key above unchanged.
+    coordinator_api_key: str = ""
+    automation_api_key: str = ""
+
     cors_origins: str = "*"
     app_env: str = "local"
 

@@ -19,6 +19,8 @@ from app.core.domain_values import RESOURCE_TYPE_PREFIXES
 
 _INCIDENT_SEQUENCE = "incident_seq"
 _ASSIGNMENT_SEQUENCE = "assignment_seq"
+_REPORT_SEQUENCE = "report_seq"
+_RECOMMENDATION_SEQUENCE = "recommendation_seq"
 
 
 def resource_prefix_for_type(resource_type: str) -> str:
@@ -44,6 +46,18 @@ def next_incident_id(db: Session) -> str:
 def next_assignment_id(db: Session) -> str:
     value = db.execute(text(f"SELECT nextval('{_ASSIGNMENT_SEQUENCE}')")).scalar_one()
     return f"ASG-{value:02d}"
+
+
+def next_report_id(db: Session) -> str:
+    value = db.execute(text(f"SELECT nextval('{_REPORT_SEQUENCE}')")).scalar_one()
+    return f"RPT-{value:02d}"
+
+
+def next_recommendation_id(db: Session) -> str:
+    value = db.execute(
+        text(f"SELECT nextval('{_RECOMMENDATION_SEQUENCE}')")
+    ).scalar_one()
+    return f"REC-{value:02d}"
 
 
 def next_resource_id(db: Session, resource_type: str) -> str:
